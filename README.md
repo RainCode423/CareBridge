@@ -141,3 +141,16 @@ This upgraded folder adds an accessible **My planner / Care planner** tab for bo
 `supabase/planner_migration.sql` documents the exact database changes for a different or future Supabase project; only run it once for each project. The connected database was updated already.
 
 **Limitations:** This is a task and acknowledgment system, not a medication dispensing or emergency response app. No scheduled browser notifications, SMS, email, push alerts, or automatic background reminders are included. Check off a medication task only as an acknowledgment, not as proof a drug was taken. Browser sync occurs on manual refresh or when the app regains focus.
+## Source organization (ES modules)
+
+CareBridge now uses separate native JavaScript modules:
+
+- `src/app.js` — entry point, login, Supabase session, and event handlers
+- `src/screens.js` — check-in, family, wellness, settings, and login screens
+- `src/planner.js` — shared tasks, calendar, recurrence, and task editor
+- `src/data.js` — shared Supabase response/error helper
+- `src/utils.js` — reusable date and HTML-safe formatting utilities
+- `src/config.example.js` — public project config template; keep `src/config.js` local
+- `tests/planner.test.mjs` — Node.js built-in tests (`node --test tests/*.test.mjs`)
+
+There is no bundler or package installation. Run the app using `python3 -m http.server 5501` in the repository root. This reorganization requires no database migration.
