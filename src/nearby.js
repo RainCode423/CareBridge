@@ -24,7 +24,7 @@ export function createNearby({isActive,update,supabase,getUser}){
   const shownPlaces=shown();
   return `${intro('Explore nearby places 📍','Find pharmacies, parks, groceries, and other useful places with an easy-to-use Google Map.')}
    <section class="panel nearby-start">
-    <div class="nearby-headline"><div><div class="eyebrow">Your neighborhood, made easier</div><h2>What would you like to find?</h2><p>Pick a category, then enter a city or use your location to search Google Maps.</p></div><div class="nearby-headline-icon" aria-hidden="true">🗺️</div></div>
+    <div class="nearby-headline"><div><div class="eyebrow">Find places near your area</div><h2>What would you like to find?</h2><p>Pick a category, then enter a city or use your location to search Google Maps.</p></div><div class="nearby-headline-icon" aria-hidden="true">🗺️</div></div>
     <div class="nearby-categories" role="group" aria-label="Find a place">${categoryButtons()}</div>
     <div class="nearby-find-options"><button class="btn green nearby-locate" type="button" data-nearby-action="locate" ${busy?'disabled':''}>${busy?'Finding location…':'◎ Use my location'}</button><span class="nearby-or">or search by city</span>
      <form class="nearby-city-form" id="nearby-city-form"><label class="visually-hidden" for="nearby-city">City or ZIP code</label><input id="nearby-city" name="city" placeholder="City or ZIP code" maxlength="80" value="${safe(city)}" required><button class="btn outline" type="submit">Find on map</button></form></div>
