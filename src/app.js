@@ -1,17 +1,18 @@
-/** Main entry point: Supabase session and app interactions. */
-import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/+esm';
-import {SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY} from './config.js';
-import {todayKey,dateMinus,escapeHTML,clock,longDate} from './utils.js';
-import {request} from './data.js';
-import {createPlanner} from './planner.js';
-import {createScreens} from './screens.js';
+/** App bootstrap: session lifecycle, UI events and persistence. */
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/+esm';
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
+import { todayKey, dateMinus, escapeHTML, clock, longDate } from './utils.js';
+import { request } from './data.js';
+import { createPlanner } from './planner.js';
+import { createScreens } from './screens.js';
+import { createNearby } from './nearby.js';
+
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY || !SUPABASE_URL.startsWith('https://')) {
   document.getElementById('app').innerHTML = '<section class="panel auth-container"><h1>Complete Supabase setup</h1><p>Open <code>src/config.js</code> and enter your Supabase project URL and publishable key, then refresh.</p></section>';
 } else {
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 (function(){
-'use strict';
 const STORE='carebridge-accessibility-v2';
 const initialPrefs={elderName:'Your loved one',familyName:'Family',hour:20,font:'normal',contrast:false};
 let uiPrefs={};
@@ -61,11 +62,21 @@ async function reloadData(){
 }
 const mutate=async(fn,success)=>{if(busy)return;busy=true;try{await fn();await reloadData();flash(success)}catch(err){flash(`Could not save: ${err.message||'unknown error'}`)}finally{busy=false}};
 const todays=()=>state.checkins[todayKey()]||null;
-const tabItems=()=>role==='family'?[['family','♡','Family'],['planner','▦','Care planner'],['settings','⚙','Settings']]:[['home','⌂','Today'],['planner','▦','My planner'],['routine','☑','Wellness'],['settings','⚙','Settings']];
-planner=createPlanner({state,getRole:()=>role,getUser:()=>user,getEditingTaskId:()=>editingTaskId,initialCalendarVisible:uiPrefs.calendarVisible!==false});
+const tabItems=()=>role==='family'?[['family','♡','Family'],['planner','▦','Care planner'],['settings','⚙','Settings']]:[['home','⌂','Today'],['planner','▦','My planner'],['nearby','📍','Nearby'],['routine','☑','Wellness'],['settings','⚙','Settings']];
+planner=createPlanner({
+  state,
+  getRole:()=>role, getUser:()=>user,
+  getEditingTaskId:()=>editingTaskId,
+  initialCalendarVisible:uiPrefs.calendarVisible!==false
+});
 const {viewPlanner,taskPreview,taskModalHTML,scheduled,taskDone,canManageTask}=planner;
-const screens=createScreens({state,todays,taskPreview,getRole:()=>role,getLinks:()=>links,getInvitationCode:()=>invitationCode,getAuthMode:()=>authMode,getInfoText:()=>infoText});
+const screens=createScreens({
+  state,todays,taskPreview,
+  getRole:()=>role,getLinks:()=>links,getInvitationCode:()=>invitationCode,
+  getAuthMode:()=>authMode,getInfoText:()=>infoText
+});
 const {viewHome,viewRoutine,viewFamily,viewSettings,authUI,setupUI,familyStatus}=screens;
+const nearby=createNearby({isActive:()=>view==='nearby',update:()=>{if(view==='nearby')render()}});
 function renderNav(){
   document.getElementById('desktop-nav').innerHTML=tabItems().map(([id,icon,name])=>`<button type="button" class="nav-btn" data-view="${id}" ${id===view?'aria-current="page"':''}><span class="nav-ico" aria-hidden="true">${icon}</span>${name}</button>`).join('');
   document.getElementById('mobile-nav').innerHTML=tabItems().map(([id,icon,name])=>`<button type="button" data-view="${id}" ${id===view?'aria-current="page"':''}><b aria-hidden="true">${icon}</b>${name}</button>`).join('');
@@ -79,8 +90,9 @@ function render({focus=false}={}){
   document.getElementById('signout-btn').hidden=!user;
   document.getElementById('refresh-btn').hidden=!elderId;
   document.getElementById('account-role').textContent=user?(role==='senior'?'OLDER ADULT ACCOUNT':role==='family'?'FAMILY ACCOUNT':'ACCOUNT SETUP'):'SECURE SIGN IN';
-  if(user&&elderId&&role){renderNav();document.getElementById('app').innerHTML=({home:viewHome,planner:viewPlanner,routine:viewRoutine,family:viewFamily,settings:viewSettings})[view]();}
+  if(user&&elderId&&role){renderNav();document.getElementById('app').innerHTML=({home:viewHome,planner:viewPlanner,nearby:nearby.viewNearby,routine:viewRoutine,family:viewFamily,settings:viewSettings})[view]();}
   else{document.getElementById('desktop-nav').innerHTML='';document.getElementById('mobile-nav').innerHTML='';document.getElementById('app').innerHTML=user?setupUI():authUI()}
+  if(view==='nearby'&&user&&elderId&&role==='senior')nearby.afterRender();
   if(accountError)document.getElementById('app').insertAdjacentHTML('afterbegin',`<div class="error-notice" role="alert">${escapeHTML(accountError)} <button class="small-btn" data-action="retry">Retry</button></div>`);
   if(focus)document.getElementById('app').focus({preventScroll:true});
 }
@@ -94,11 +106,12 @@ function renderModal(){const host=document.getElementById('modal-host');if(!moda
 }
 function speak(){if(!('speechSynthesis' in window)){flash('Speech playback is unavailable in this browser.');return}window.speechSynthesis.cancel();const text=view==='home'?(todays()?.status==='okay'?`You've checked in today, ${state.prefs.elderName}. Thank you.`:`Hello, ${state.prefs.elderName}. Press I'm okay today to check in, or I could use help if you need support.`):view==='family'?`${state.prefs.elderName}'s family check-in status. ${familyStatus().label.replace(/<[^>]*>/g,'')}.`:view==='routine'?'Your daily routine. Check off any reminders you finish today.': 'Settings. Adjust font size, contrast, and your check-in time.';const utterance=new SpeechSynthesisUtterance(text);utterance.rate=.88;window.speechSynthesis.speak(utterance)}
 
-async function signOut(){await supabase.auth.signOut();user=null;role=null;elderId=null;links=[];invitationCode='';state.checkins={};state.notes={};state.reminders=[];state.tasks=[];state.completions=[];authMode='signin';view='home';infoText='';render()}
+async function signOut(){nearby.reset();await supabase.auth.signOut();user=null;role=null;elderId=null;links=[];invitationCode='';state.checkins={};state.notes={};state.reminders=[];state.tasks=[];state.completions=[];authMode='signin';view='home';infoText='';render()}
 async function initialize(){try{const {data:{user:current},error}=await supabase.auth.getUser();if(error)throw error;user=current;if(user)await loadAccount();else render()}catch(err){if(err.name==='AuthSessionMissingError'){user=null;render()}else{accountError=err.message;render()}}}
 async function recordHelp(){const previous=todays();await request(supabase.from('check_ins').upsert({elder_id:elderId,day:todayKey(),status:'help',checked_at:new Date().toISOString(),reason:needReason,mood:previous?.mood||null},{onConflict:'elder_id,day'}))}
 document.addEventListener('click',async e=>{
  const v=e.target.closest('[data-view]');if(v){const permitted=tabItems().some(item=>item[0]===v.dataset.view);if(permitted)setView(v.dataset.view);return}
+ if(view==='nearby' && e.target.closest('[data-nearby-action], [data-nearby-category]')){await nearby.handleClick(e.target);return}
  const calToggle=e.target.closest('[data-calendar-toggle]');if(calToggle){planner.toggleCalendar();save();render();document.querySelector('[data-calendar-toggle]')?.focus();return}
  const mode=e.target.closest('[data-planner-mode]');if(mode){planner.setMode(mode.dataset.plannerMode);render();return}
  const filter=e.target.closest('[data-planner-filter]');if(filter){planner.setCategory(filter.dataset.plannerFilter);render();return}
@@ -138,6 +151,7 @@ document.addEventListener('click',async e=>{
  if(action==='unlink'&&role==='family'&&window.confirm('Disconnect from this older adult? You will lose access to their updates.')){await mutate(async()=>{await request(supabase.from('caregiver_links').delete().eq('elder_id',elderId).eq('caregiver_id',user.id));elderId=null;role=null;await loadAccount()},'Connection removed.');}
 });
 document.addEventListener('submit',async e=>{
+ if(e.target.id==='nearby-city-form'&&view==='nearby'){e.preventDefault();await nearby.handleCitySubmit(e.target);return}
  if(e.target.id==='auth-form'){
   e.preventDefault();if(busy)return;busy=true;
   const email=document.getElementById('auth-email').value.trim(),password=document.getElementById('auth-password').value;
