@@ -1,0 +1,7 @@
+src/config.js
+.DS_Store
+.vscode/
+node_modules/
+.env
+.env.*
+!.env.example
