@@ -166,15 +166,15 @@ With Node installed, run `node --test tests/*.test.mjs` (or `npm test`). Neither
 
 For your existing Supabase project, **do not rerun the original SQL schema**: the database is already configured and no database changes are needed for this refactor.
 
-## Nearby Places — Google Maps (new)
+## Nearby Places — Google Maps + Places API (Legacy)
 
 The **Nearby** tab is available for the older adult account. It adapts the category-based discovery, map markers, and Google Maps directions concept from [WhatsNearby](https://github.com/Bwang101/WhatsNearby) with larger, accessible controls.
 
 **Setup is required before live Google Maps results appear:**
 
 1. Open [Google Cloud Console](https://console.cloud.google.com/) and select/create a project. Configure a billing account; Google Maps Platform APIs may incur usage charges.
-2. Enable **Maps JavaScript API** and **Places API (New)** in **APIs & Services → Library**.
-3. In **APIs & Services → Credentials**, create an API key. Set **Application restrictions → Websites** and allow the local addresses you use for development, e.g. `http://localhost:5500/*`, `http://localhost:5501/*`, and `http://127.0.0.1:5501/*` (add your deployed website hostname before publishing). Set **API restrictions** to Maps JavaScript API and Places API (New). Set usage quotas/budget alerts in Google Cloud to manage cost.
+2. Enable **Maps JavaScript API** and **Places API (Legacy)** in **APIs & Services → Library**. Legacy Places is only available to existing Google Cloud projects that already have access. New projects generally cannot activate this legacy service.
+3. In **APIs & Services → Credentials**, create an API key. Set **Application restrictions → Websites** and allow the local addresses you use for development, e.g. `http://localhost:5500/*`, `http://localhost:5501/*`, and `http://127.0.0.1:5501/*` (add your deployed website hostname before publishing). Set **API restrictions** to Maps JavaScript API and Places API (Legacy). Set usage quotas/budget alerts in Google Cloud to manage cost.
 4. In VS Code run `cp src/maps-config.example.js src/maps-config.js`. Open `src/maps-config.js`, enter your **browser key** in `GOOGLE_MAPS_BROWSER_KEY`, and optionally set `GOOGLE_MAP_ID` to a Google Cloud Maps **JavaScript map ID**. `DEMO_MAP_ID` is suitable **only for local testing**.
 5. Start CareBridge as usual with `python3 -m http.server 5501`, open `http://localhost:5501`, sign in as the older adult, then select **Nearby**.
 6. Choose a category, then **Use my location** (browser permission required) **or** search by city/ZIP. View places and markers; **Directions** opens Google Maps externally.
@@ -183,4 +183,4 @@ The **Nearby** tab is available for the older adult account. It adapts the categ
 
 **Privacy:** The Nearby page does not write location or search history into Supabase. The location is used in browser memory for the current session only; Google will receive map/search requests when the user initiates a search. Location requires a secure context (localhost works for local development; deployment generally needs HTTPS). The screen does not guarantee accessibility features, current hours, transportation, or medical availability; confirm details before going.
 
-No Supabase schema changes are required for this page. Google API calls cannot be tested live until you provide a properly configured browser key and billing.
+This browser implementation uses the callback-based `google.maps.places.PlacesService.nearbySearch()` for current location and `.textSearch()` for city/ZIP searches, analogous to WhatsNearby's Legacy Places searches. It does not call the server-only `/maps/api/place/nearbysearch/json` endpoint directly. No Supabase schema changes are required. Google calls must be verified on your device using an authorized browser key and a Legacy-enabled project.
