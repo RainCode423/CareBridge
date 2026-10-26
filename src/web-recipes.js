@@ -25,7 +25,7 @@ export function createWebRecipes(){
     (r.thumbnail?'<img class="recipe-detail-image" src="'+h(r.thumbnail)+'" alt="'+h(r.title)+'">':'')+
     '<h3>Ingredients</h3><ul class="recipe-ingredients">'+r.ingredients.map(i=>'<li>'+h((i.amount?i.amount+' ':'')+i.name)+'</li>').join('')+'</ul>'+
     '<h3>Instructions from the recipe website</h3><div class="recipe-directions">'+h(r.instructions).replace(/\r?\n/g,'<br>')+'</div>'+
-    '<p class="notice warning">Allergy reminder: ingredient keyword filtering is not a reliable allergy check. Review every ingredient, product label, substitute and cross-contact risk before cooking.</p>'+
+
     '<a class="btn green" target="_blank" rel="noopener noreferrer" href="'+h(source)+'">Read on recipe website ↗</a></section>';
  }
  function view(){
@@ -34,7 +34,7 @@ export function createWebRecipes(){
    '<div class="field"><label for="recipe-pantry">What ingredients do you have?</label><textarea id="recipe-pantry" rows="2" placeholder="eggs, tomatoes, rice, chicken">'+h(prefs.pantry)+'</textarea></div>'+
    '<div class="field"><label for="recipe-query">Search for a dish (optional)</label><input id="recipe-query" placeholder="e.g. pasta or soup" maxlength="80" value="'+h(prefs.query)+'"></div>'+
    '<div class="recipe-form-row"><div class="field"><label for="recipe-cuisine">Cuisine</label><select id="recipe-cuisine">'+CUISINES.map(c=>'<option value="'+h(c)+'" '+(c===prefs.cuisine?'selected':'')+'>'+h(c||'Any cuisine')+'</option>').join('')+'</select></div>'+
-   '<div class="field"><label for="recipe-avoid">Ingredients to avoid (optional)</label><input id="recipe-avoid" placeholder="peanuts, milk" value="'+h(prefs.avoid)+'"></div></div>'+
+   '<div class="field"><label for="recipe-avoid">Ingredients to avoid (not an allergy check)</label><input id="recipe-avoid" placeholder="peanuts, milk" value="'+h(prefs.avoid)+'"></div></div>'+
    '<label class="recipe-check"><input type="checkbox" id="recipe-vegetarian" '+(prefs.vegetarian?'checked':'')+'> Show vegetarian-category recipes only</label>'+
    '<div class="inline-actions"><button class="btn green" type="submit" '+(loading?'disabled':'')+'>'+(loading?'Searching…':'Find real recipes')+'</button><button type="button" class="btn outline" data-recipe-random '+(loading?'disabled':'')+'>Surprise me</button></div></form>'+
    '</div>';
