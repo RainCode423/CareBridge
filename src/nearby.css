@@ -1,0 +1,48 @@
+/* CareBridge Nearby: elderly-friendly, responsive and deliberately low-distraction. */
+.nearby-start{padding:28px!important;margin-bottom:24px}
+.nearby-headline{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:22px}
+.nearby-headline h2{font-size:1.65rem;letter-spacing:-.04em;margin:5px 0 8px}
+.nearby-headline p{margin:0;line-height:1.6;color:#5a746a;max-width:670px}
+.nearby-headline-icon{font-size:3.5rem;line-height:1;border-radius:24px;padding:18px;background:#ebf6ed}
+.nearby-categories{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:23px}
+.nearby-category{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;text-align:center;border:2px solid #dce8db;border-radius:17px;min-height:94px;padding:14px 10px;background:#fff;color:#365c51;font-size:.92rem;font-weight:800;line-height:1.3;cursor:pointer}
+.nearby-category span{font-size:2rem;line-height:1}
+.nearby-category[aria-pressed="true"]{background:#e8f5eb;border-color:#107662;color:#0b684f;box-shadow:0 0 0 2px #d4f0df}
+.nearby-category:focus-visible,.nearby-place a:focus-visible,.nearby-find-options button:focus-visible{outline:3px solid #195ec0;outline-offset:3px}
+.nearby-find-options{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.nearby-locate{white-space:nowrap;min-height:54px;padding:12px 22px!important}
+.nearby-or{color:#6b8076;font-weight:750;font-size:.85rem}
+.nearby-city-form{display:flex;flex:1 1 310px;gap:10px;align-items:center;min-width:0}
+.nearby-city-form input{flex:1;min-width:0;min-height:54px;border-radius:13px;border:2px solid #cddfd2;padding:10px 14px;background:white;color:#173b34;font-size:1rem}
+.nearby-city-form button{min-height:54px;white-space:nowrap}
+.nearby-privacy-note{background:#f2f8f2;border-left:4px solid #1c8066;border-radius:10px;padding:12px 16px;margin-top:20px;color:#436659;font-size:.88rem;line-height:1.55}
+.nearby-toolbar{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;margin:0 0 17px}
+.nearby-toolbar h2{font-size:1.5rem;margin:0 0 5px;letter-spacing:-.035em}
+.nearby-toolbar p{margin:0;color:#5b736a;font-size:.94rem;line-height:1.55;max-width:690px}
+.nearby-map-toggle{white-space:nowrap;min-height:46px}
+.nearby-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.06fr);align-items:start;gap:18px}
+.nearby-grid.nearby-no-map{grid-template-columns:minmax(0,1fr)}
+.nearby-grid>.panel{min-width:0;max-width:100%;padding:16px!important}
+.nearby-results-list{display:grid;gap:12px}
+.nearby-place{display:flex;gap:12px;padding:15px;border:1px solid #e1e9e2;border-radius:15px;background:#fcfdfa;min-width:0}
+.nearby-number{flex:0 0 35px;height:35px;display:grid;place-items:center;background:#e8f3e9;border-radius:12px;color:#17664f;font-weight:900}
+.nearby-place-main{min-width:0;flex:1}
+.nearby-place h3{font-size:1.1rem;margin:0 0 7px;line-height:1.34;overflow-wrap:anywhere}
+.nearby-place p{margin:0 0 9px;font-size:.9rem;color:#60786d;line-height:1.45;overflow-wrap:anywhere}
+.nearby-place-details{display:flex;flex-wrap:wrap;gap:5px 14px;font-size:.82rem;color:#3e7562;font-weight:760;margin-bottom:12px}
+.nearby-place-actions{display:flex;flex-wrap:wrap;gap:9px}
+.nearby-place-actions a{font-size:.89rem;font-weight:850;display:inline-flex;align-items:center;justify-content:center;padding:10px 15px;border-radius:11px;text-decoration:none;min-height:44px;background:#0f795f;color:white}
+.nearby-place-actions a.nearby-secondary-link{background:white;color:#126b51;border:1px solid #b9d6c3}
+.nearby-map-panel{position:relative}
+.nearby-map{height:470px;min-height:350px;width:100%;border-radius:13px;overflow:hidden;background:#eaf3e8;color:#416757}
+.nearby-map-placeholder{display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;gap:15px;height:100%;font-size:3rem}
+.nearby-map-placeholder span{font-weight:800;font-size:1rem;max-width:230px}
+.nearby-map-caption{font-size:.83rem;color:#5c776d;margin:10px 0 0;line-height:1.5}
+.nearby-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:350px;text-align:center;color:#526e61;padding:22px}
+.nearby-empty span{font-size:2.75rem}
+.nearby-empty strong{font-size:1.25rem;color:#264d3f}
+.nearby-empty p{margin:0;max-width:350px;line-height:1.5}
+.nearby-disclaimer{font-size:.83rem;color:#647c6f;line-height:1.5;margin:20px 0 0}
+.nearby-popup{font-size:14px;max-width:240px}.nearby-popup strong{font-size:15px}.nearby-popup p{margin:7px 0}.nearby-popup a{font-weight:700;color:#10674d}
+@media(max-width:1150px){.nearby-grid{grid-template-columns:minmax(0,1fr)}.nearby-map{height:380px}}
+@media(max-width:690px){.nearby-start{padding:20px!important}.nearby-headline-icon{display:none}.nearby-categories{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.nearby-category{min-height:88px}.nearby-find-options{align-items:stretch}.nearby-or{width:100%;text-align:center}.nearby-locate{width:100%}.nearby-city-form{flex:1 1 100%;flex-wrap:wrap}.nearby-city-form input{flex-basis:100%}.nearby-city-form button{width:100%}.nearby-grid>.panel{padding:12px!important}.nearby-map{height:320px}.nearby-place{padding:12px}.nearby-place-actions a{flex:1}.nearby-headline h2{font-size:1.4rem}.mobile-nav button{font-size:.62rem!important}}
