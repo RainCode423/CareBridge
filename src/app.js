@@ -76,7 +76,7 @@ const screens=createScreens({
   getAuthMode:()=>authMode,getInfoText:()=>infoText
 });
 const {viewHome,viewRoutine,viewFamily,viewSettings,authUI,setupUI,familyStatus}=screens;
-const nearby=createNearby({isActive:()=>view==='nearby',update:()=>{if(view==='nearby')render()}});
+const nearby=createNearby({isActive:()=>view==='nearby',update:()=>{if(view==='nearby')render()},supabase,getUser:()=>user});
 function renderNav(){
   document.getElementById('desktop-nav').innerHTML=tabItems().map(([id,icon,name])=>`<button type="button" class="nav-btn" data-view="${id}" ${id===view?'aria-current="page"':''}><span class="nav-ico" aria-hidden="true">${icon}</span>${name}</button>`).join('');
   document.getElementById('mobile-nav').innerHTML=tabItems().map(([id,icon,name])=>`<button type="button" data-view="${id}" ${id===view?'aria-current="page"':''}><b aria-hidden="true">${icon}</b>${name}</button>`).join('');
@@ -111,7 +111,7 @@ async function initialize(){try{const {data:{user:current},error}=await supabase
 async function recordHelp(){const previous=todays();await request(supabase.from('check_ins').upsert({elder_id:elderId,day:todayKey(),status:'help',checked_at:new Date().toISOString(),reason:needReason,mood:previous?.mood||null},{onConflict:'elder_id,day'}))}
 document.addEventListener('click',async e=>{
  const v=e.target.closest('[data-view]');if(v){const permitted=tabItems().some(item=>item[0]===v.dataset.view);if(permitted)setView(v.dataset.view);return}
- if(view==='nearby' && e.target.closest('[data-nearby-action], [data-nearby-category]')){await nearby.handleClick(e.target);return}
+ if(view==='nearby' && e.target.closest('[data-nearby-action], [data-nearby-category], [data-nearby-select], [data-nearby-delete]')){await nearby.handleClick(e.target);return}
  const calToggle=e.target.closest('[data-calendar-toggle]');if(calToggle){planner.toggleCalendar();save();render();document.querySelector('[data-calendar-toggle]')?.focus();return}
  const mode=e.target.closest('[data-planner-mode]');if(mode){planner.setMode(mode.dataset.plannerMode);render();return}
  const filter=e.target.closest('[data-planner-filter]');if(filter){planner.setCategory(filter.dataset.plannerFilter);render();return}
@@ -152,6 +152,8 @@ document.addEventListener('click',async e=>{
 });
 document.addEventListener('submit',async e=>{
  if(e.target.id==='nearby-city-form'&&view==='nearby'){e.preventDefault();await nearby.handleCitySubmit(e.target);return}
+ if(e.target.id==='nearby-save-form'&&view==='nearby'){e.preventDefault();await nearby.handleSaveSubmit(e.target);return}
+ if(e.target.id==='nearby-filter-form'&&view==='nearby'){e.preventDefault();await nearby.handleFilterSubmit(e.target);return}
  if(e.target.id==='auth-form'){
   e.preventDefault();if(busy)return;busy=true;
   const email=document.getElementById('auth-email').value.trim(),password=document.getElementById('auth-password').value;
