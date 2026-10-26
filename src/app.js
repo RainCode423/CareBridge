@@ -125,7 +125,7 @@ function speak(){if(!('speechSynthesis' in window)){flash('Speech playback is un
 async function signOut(){nearby.reset();webRecipes.reset();await supabase.auth.signOut();user=null;role=null;elderId=null;links=[];invitationCode='';state.checkins={};state.notes={};state.reminders=[];state.tasks=[];state.completions=[];authMode='signin';view='home';infoText='';render()}
 async function initialize(){try{const {data:{user:current},error}=await supabase.auth.getUser();if(error)throw error;user=current;if(user)await loadAccount();else render()}catch(err){if(err.name==='AuthSessionMissingError'){user=null;render()}else{accountError=err.message;render()}}}
 async function recordHelp(){const previous=todays();if(previous?.followedUp){await request(supabase.from('followups').delete().eq('elder_id',elderId).eq('day',todayKey()))}await request(supabase.from('check_ins').upsert({elder_id:elderId,day:todayKey(),status:'help',checked_at:new Date().toISOString(),reason:needReason,mood:previous?.mood||null},{onConflict:'elder_id,day'}))}
-document.getElementById('language-select')?.addEventListener('change',e=>{setLanguage(e.target.value);translateDOM();});
+document.getElementById('language-select')?.addEventListener('change',e=>{setLanguage(e.target.value);document.getElementById('header-date').textContent=longDate();translateDOM();});
 document.addEventListener('click',async e=>{
  const v=e.target.closest('[data-view]');if(v){const permitted=tabItems().some(item=>item[0]===v.dataset.view);if(permitted)setView(v.dataset.view);return}
  if(view==='recipes' && e.target.closest('[data-recipe-id], [data-recipe-back], [data-recipe-random]')){webRecipes.onClick(e.target,()=>{if(view==='recipes')render()});return}
