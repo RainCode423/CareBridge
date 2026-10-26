@@ -1,46 +1,36 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {PLACE_CATEGORIES,normalizePlace,distanceMiles,directionsUrl,isMapsKeyConfigured,placeMapUrl} from '../src/nearby-core.js';
+import {PLACE_CATEGORIES,hasCoordinates,placeQuery,categoryQuery,buildMapEmbedUrl,buildMapsSearchUrl,buildDirectionsUrl,normalizeBusiness} from '../src/nearby-core.js';
 
-test('elderly-focused categories include health and community places',()=>{
-  for(const type of ['pharmacy','clinic','groceries','parks','library','community']){
-    assert.ok(PLACE_CATEGORIES[type]);
-  }
+test('senior-friendly search categories exist',()=>{
+ for(const key of ['pharmacy','clinic','groceries','parks','library','community','cafe'])assert.ok(PLACE_CATEGORIES[key]);
 });
-test('place coordinates are validated and normalized',()=>{
-  const obj=normalizePlace({id:'abc',displayName:'My Clinic',formattedAddress:'Main Street',location:{lat:()=>34,lng:()=>-117}});
-  assert.equal(obj.name,'My Clinic');
-  assert.equal(obj.lat,34);
-  assert.equal(normalizePlace({location:{lat:120,lng:0}}),null);
+test('coordinates require a valid numeric pair',()=>{
+ assert.equal(hasCoordinates({lat:34.02,long:-117.81}),true);
+ assert.equal(hasCoordinates({lat:null,long:0}),false);
+ assert.equal(hasCoordinates({lat:999,long:0}),false);
+ assert.equal(hasCoordinates({lat:'',long:''}),false);
 });
-test('Google Maps directions URLs use safe URL encoding and place IDs',()=>{
-  const url=new URL(directionsUrl({lat:34.1,lng:-117.7,id:'ChIJ & place'},'walking'));
-  assert.equal(url.hostname,'www.google.com');
-  assert.equal(url.searchParams.get('travelmode'),'walking');
-  assert.equal(url.searchParams.get('destination_place_id'),'ChIJ & place');
-  assert.equal(new URL(placeMapUrl({lat:34,lng:-117,id:'xyz'})).searchParams.get('query_place_id'),'xyz');
+test('saved place URL prefers coordinates, falls back to address',()=>{
+ assert.equal(placeQuery({name:'My Cafe',address:'100 Main St',lat:34,long:-117}),'34,-117');
+ assert.equal(placeQuery({name:'My Cafe',address:'100 Main St'}),'100 Main St');
+ assert.equal(placeQuery({name:'My Cafe'}),'My Cafe');
 });
-test('distance displays a sensible distance in miles',()=>{
-  assert.ok(distanceMiles({lat:34,lng:-117},{lat:34.01,lng:-117})>.6);
-  assert.equal(distanceMiles(null,{lat:34,lng:-117}),null);
+test('category searches and iframe query encode spaces safely',()=>{
+ assert.equal(categoryQuery('pharmacy','Diamond Bar, CA'),'pharmacies near Diamond Bar, CA');
+ const url=new URL(buildMapEmbedUrl('pharmacies near Diamond Bar, CA'));
+ assert.equal(url.hostname,'www.google.com');
+ assert.equal(url.searchParams.get('q'),'pharmacies near Diamond Bar, CA');
+ assert.equal(url.searchParams.get('output'),'embed');
 });
-test('an unconfigured Google Maps key is rejected',()=>{
-  assert.equal(isMapsKeyConfigured('YOUR_GOOGLE_MAPS_BROWSER_KEY'),false);
-  assert.equal(isMapsKeyConfigured('abc'),false);
-  assert.equal(isMapsKeyConfigured('AIzaSyExampleExampleExampleExample'),true);
+test('Google Maps links do not require a developer API key',()=>{
+ const url=new URL(buildMapsSearchUrl('parks near Diamond Bar'));
+ assert.equal(url.searchParams.get('api'),'1');
+ assert.equal(url.searchParams.get('query'),'parks near Diamond Bar');
+ const directions=new URL(buildDirectionsUrl({address:'101 Main St, CA'}));
+ assert.equal(directions.searchParams.get('destination'),'101 Main St, CA');
 });
-test('legacy PlacesService results normalize place_id, geometry, vicinity, and reviews',()=>{
-  const legacy={
-    place_id:'ChIJTEST',
-    name:'Neighborhood Pharmacy',
-    vicinity:'123 Main Street',
-    geometry:{location:{lat:()=>34.02,lng:()=>-117.82}},
-    rating:4.6,
-    user_ratings_total:128
-  };
-  const result=normalizePlace(legacy);
-  assert.deepEqual({id:result.id,name:result.name,address:result.address,lat:result.lat,lng:result.lng,rating:result.rating,reviewCount:result.reviewCount},{
-    id:'ChIJTEST',name:'Neighborhood Pharmacy',address:'123 Main Street',lat:34.02,lng:-117.82,rating:4.6,reviewCount:128
-  });
-  assert.equal(normalizePlace({geometry:{location:{lat:()=>999,lng:()=>0}}}),null);
+test('invalid saved business is excluded',()=>{
+ assert.equal(normalizeBusiness({id:'1',name:'No location'}),null);
+ assert.equal(normalizeBusiness({id:'1',name:'Place',address:'100 Main St'}).name,'Place');
 });
