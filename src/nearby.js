@@ -28,7 +28,7 @@ export function createNearby({isActive,update,supabase,getUser}){
     <div class="nearby-categories" role="group" aria-label="Find a place">${categoryButtons()}</div>
     <div class="nearby-find-options"><button class="btn green nearby-locate" type="button" data-nearby-action="locate" ${busy?'disabled':''}>${busy?'Finding location…':'◎ Use my location'}</button><span class="nearby-or">or search by city</span>
      <form class="nearby-city-form" id="nearby-city-form"><label class="visually-hidden" for="nearby-city">City or ZIP code</label><input id="nearby-city" name="city" placeholder="City or ZIP code" maxlength="80" value="${safe(city)}" required><button class="btn outline" type="submit">Find on map</button></form></div>
-    <div class="nearby-privacy-note">🔒 Saved places are private to your signed-in account. SeniorCare does not save your GPS location. Google receives search and map requests when you use this page.</div>
+
    </section>
    <div class="nearby-toolbar"><div><h2>${current?safe(current.name):target?'Explore your area':'Your nearby map'}</h2><p role="status">${safe(message|| (target?'Choose a saved place or open Google Maps to view search results.':'Choose a category, then search by city or location.'))}</p></div>
     <button type="button" class="btn outline nearby-map-toggle" data-nearby-action="toggle-map" aria-expanded="${mapShown}" aria-controls="carebridge-embedded-map">${mapShown?'Hide map':'Show map'}</button></div>
