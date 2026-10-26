@@ -53,8 +53,8 @@ async function reloadData(){
       request(supabase.from('care_tasks').select('*').eq('elder_id',elderId).order('due_date',{ascending:true})),
       request(supabase.from('care_task_completions').select('*').gte('scheduled_for',todayKey(dateMinus(90))))
     ]);
-    const followSet=new Set(followups.map(f=>f.day));
-    state.checkins=Object.fromEntries(checkins.map(c=>[c.day,{status:c.status,at:c.checked_at,mood:c.mood,reason:c.reason,followedUp:followSet.has(c.day)}]));
+    const followMap=new Map(followups.map(f=>[f.day,f]));
+    state.checkins=Object.fromEntries(checkins.map(c=>[c.day,{status:c.status,at:c.checked_at,mood:c.mood,reason:c.reason,followedUp:followMap.has(c.day),followupBy:followMap.get(c.day)?.caregiver_id||null}]));
     state.notes=Object.fromEntries(notes.map(n=>[n.day,n.note]));
     state.reminders=reminders.map(r=>({id:r.id,title:r.title,subtitle:r.subtitle,icon:r.icon,dates:r.done_dates||[]}));
     state.tasks=tasks;state.completions=completions;
@@ -75,7 +75,7 @@ const {viewPlanner,taskPreview,taskModalHTML,scheduled,taskDone,canManageTask}=p
 const screens=createScreens({
   state,todays,taskPreview,
   getRole:()=>role,getLinks:()=>links,getInvitationCode:()=>invitationCode,
-  getAuthMode:()=>authMode,getInfoText:()=>infoText
+  getAuthMode:()=>authMode,getInfoText:()=>infoText,getUserId:()=>user?.id
 });
 const {viewHome,viewRoutine,viewFamily,viewSettings,authUI,setupUI,familyStatus}=screens;
 const nearby=createNearby({isActive:()=>view==='nearby',update:()=>{if(view==='nearby')render()},supabase,getUser:()=>user});
@@ -110,7 +110,7 @@ function speak(){if(!('speechSynthesis' in window)){flash('Speech playback is un
 
 async function signOut(){nearby.reset();webRecipes.reset();await supabase.auth.signOut();user=null;role=null;elderId=null;links=[];invitationCode='';state.checkins={};state.notes={};state.reminders=[];state.tasks=[];state.completions=[];authMode='signin';view='home';infoText='';render()}
 async function initialize(){try{const {data:{user:current},error}=await supabase.auth.getUser();if(error)throw error;user=current;if(user)await loadAccount();else render()}catch(err){if(err.name==='AuthSessionMissingError'){user=null;render()}else{accountError=err.message;render()}}}
-async function recordHelp(){const previous=todays();await request(supabase.from('check_ins').upsert({elder_id:elderId,day:todayKey(),status:'help',checked_at:new Date().toISOString(),reason:needReason,mood:previous?.mood||null},{onConflict:'elder_id,day'}))}
+async function recordHelp(){const previous=todays();if(previous?.followedUp){await request(supabase.from('followups').delete().eq('elder_id',elderId).eq('day',todayKey()))}await request(supabase.from('check_ins').upsert({elder_id:elderId,day:todayKey(),status:'help',checked_at:new Date().toISOString(),reason:needReason,mood:previous?.mood||null},{onConflict:'elder_id,day'}))}
 document.addEventListener('click',async e=>{
  const v=e.target.closest('[data-view]');if(v){const permitted=tabItems().some(item=>item[0]===v.dataset.view);if(permitted)setView(v.dataset.view);return}
  if(view==='recipes' && e.target.closest('[data-recipe-id], [data-recipe-back], [data-recipe-random]')){webRecipes.onClick(e.target,()=>{if(view==='recipes')render()});return}
@@ -145,7 +145,7 @@ document.addEventListener('click',async e=>{
  if(action==='close-modal'){modalType=null;renderModal()}
  if(action==='save-help'&&role==='senior'){await mutate(recordHelp,'Help request saved for linked caregivers to view. No alert was sent.');modalType=null;renderModal()}
  if(action==='save-note'&&role==='senior'){const note=document.getElementById('family-note')?.value.trim().slice(0,280)||'';await mutate(()=>request(supabase.from('daily_notes').upsert({elder_id:elderId,day:todayKey(),note,updated_at:new Date().toISOString()},{onConflict:'elder_id,day'})),'Your note was saved for linked caregivers.');}
- if(action==='follow-up'&&role==='family'){const c=todays();if(c?.status==='help'){await mutate(()=>c.followedUp?request(supabase.from('followups').delete().eq('elder_id',elderId).eq('day',todayKey()).eq('caregiver_id',user.id)):request(supabase.from('followups').insert({elder_id:elderId,day:todayKey(),caregiver_id:user.id})),'Follow-up updated.')}}
+ if(action==='follow-up'&&role==='family'){const c=todays();if(c?.status==='help'&&(!c.followedUp||c.followupBy===user.id)){await mutate(()=>c.followedUp?request(supabase.from('followups').delete().eq('elder_id',elderId).eq('day',todayKey()).eq('caregiver_id',user.id)):request(supabase.from('followups').insert({elder_id:elderId,day:todayKey(),caregiver_id:user.id})),c.followedUp?'Follow-up undone.':'Follow-up recorded. The request is no longer active.')}}
  if(action==='toggle-scenario'&&role==='family'){state.demoScenario=!state.demoScenario;render();flash('Only a visual preview — no alerts sent.')}
  if(action==='contrast'){state.prefs.contrast=!state.prefs.contrast;save();render();flash('Contrast updated on this device.')}
  if(action==='speak')speak();
