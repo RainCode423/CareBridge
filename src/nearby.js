@@ -48,7 +48,7 @@ export function createNearby({isActive,update,supabase,getUser}){
      <div class="nearby-iframe-actions">${lookup?`<a class="btn green" href="${safe(lookup)}" target="_blank" rel="noopener noreferrer">Open in Google Maps ↗</a>`:''}${current?`<a class="btn outline" href="${safe(buildDirectionsUrl(current))}" target="_blank" rel="noopener noreferrer">Get directions ↗</a>`:''}</div>
      <p class="nearby-map-caption">If the embedded map is unavailable, use “Open in Google Maps.” Google does not guarantee this no-key iframe format.</p></section>`:''}
    </div>
-   <p class="nearby-disclaimer">Google Maps searches appear inside Google's own map. SeniorCare cannot extract search results or ratings without a Places data service. Confirm hours and accessibility before visiting. This is not an emergency service.</p>`;
+   `;
  }
  async function loadSaved(){
   const user=getUser?.();if(!user?.id||loading)return;
