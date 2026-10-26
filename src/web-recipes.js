@@ -38,7 +38,7 @@ export function createWebRecipes(){
    '<label class="recipe-check"><input type="checkbox" id="recipe-vegetarian" '+(prefs.vegetarian?'checked':'')+'> Show vegetarian-category recipes only</label>'+
    '<div class="inline-actions"><button class="btn green" type="submit" '+(loading?'disabled':'')+'>'+(loading?'Searching…':'Find real recipes')+'</button><button type="button" class="btn outline" data-recipe-random '+(loading?'disabled':'')+'>Surprise me</button></div></form>'+
    '<p class="mini-caption">Ingredient search may use your first two pantry items. Matching is approximate; only the first available recipes are displayed. Cuisine labels and dietary categories come from the recipe source.</p></div>';
-  return '<div class="recipe-page"><div class="intro"><div class="eyebrow">CareBridge Kitchen</div><h1>What can we cook today? 🍳</h1><p>Use what is in your kitchen to discover recipes with clear instructions.</p></div>'+
+  return '<div class="recipe-page"><div class="intro"><div class="eyebrow">SeniorCare Kitchen</div><h1>What can we cook today? 🍳</h1><p>Use what is in your kitchen to discover recipes with clear instructions.</p></div>'+
     controls+(selected?detail():'<section class="recipe-results" aria-live="polite">'+
     (error?'<div class="error-notice" role="alert">'+h(error)+'</div>':'')+
     (loading?'<div class="panel">Looking up recipes from TheMealDB…</div>':searched&&!recipes.length?'<div class="panel"><h2>No matching recipes found</h2><p>Try a different ingredient, cuisine, or fewer restrictions.</p></div>':
