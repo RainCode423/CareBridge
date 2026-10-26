@@ -28,7 +28,7 @@ export function createNearby({isActive,update,supabase,getUser}){
     <div class="nearby-categories" role="group" aria-label="Find a place">${categoryButtons()}</div>
     <div class="nearby-find-options"><button class="btn green nearby-locate" type="button" data-nearby-action="locate" ${busy?'disabled':''}>${busy?'Finding location…':'◎ Use my location'}</button><span class="nearby-or">or search by city</span>
      <form class="nearby-city-form" id="nearby-city-form"><label class="visually-hidden" for="nearby-city">City or ZIP code</label><input id="nearby-city" name="city" placeholder="City or ZIP code" maxlength="80" value="${safe(city)}" required><button class="btn outline" type="submit">Find on map</button></form></div>
-    <div class="nearby-privacy-note">🔒 Saved places are private to your signed-in account. CareBridge does not save your GPS location. Google receives search and map requests when you use this page.</div>
+    <div class="nearby-privacy-note">🔒 Saved places are private to your signed-in account. SeniorCare does not save your GPS location. Google receives search and map requests when you use this page.</div>
    </section>
    <div class="nearby-toolbar"><div><h2>${current?safe(current.name):target?'Explore your area':'Your nearby map'}</h2><p role="status">${safe(message|| (target?'Choose a saved place or open Google Maps to view search results.':'Choose a category, then search by city or location.'))}</p></div>
     <button type="button" class="btn outline nearby-map-toggle" data-nearby-action="toggle-map" aria-expanded="${mapShown}" aria-controls="carebridge-embedded-map">${mapShown?'Hide map':'Show map'}</button></div>
@@ -48,7 +48,7 @@ export function createNearby({isActive,update,supabase,getUser}){
      <div class="nearby-iframe-actions">${lookup?`<a class="btn green" href="${safe(lookup)}" target="_blank" rel="noopener noreferrer">Open in Google Maps ↗</a>`:''}${current?`<a class="btn outline" href="${safe(buildDirectionsUrl(current))}" target="_blank" rel="noopener noreferrer">Get directions ↗</a>`:''}</div>
      <p class="nearby-map-caption">If the embedded map is unavailable, use “Open in Google Maps.” Google does not guarantee this no-key iframe format.</p></section>`:''}
    </div>
-   <p class="nearby-disclaimer">Google Maps searches appear inside Google's own map. CareBridge cannot extract search results or ratings without a Places data service. Confirm hours and accessibility before visiting. This is not an emergency service.</p>`;
+   <p class="nearby-disclaimer">Google Maps searches appear inside Google's own map. SeniorCare cannot extract search results or ratings without a Places data service. Confirm hours and accessibility before visiting. This is not an emergency service.</p>`;
  }
  async function loadSaved(){
   const user=getUser?.();if(!user?.id||loading)return;
@@ -80,7 +80,7 @@ export function createNearby({isActive,update,supabase,getUser}){
   try{
    const {data,error}=await supabase.from('businesses').insert({user_id:user.id,name,address,category:chosenCategory}).select('id,name,category,address,lat,long').single();
    if(error)throw error;
-   selectedId=data.id;message='Your place was saved to CareBridge.';loaded=false;await loadSaved();
+   selectedId=data.id;message='Your place was saved to SeniorCare.';loaded=false;await loadSaved();
   }catch(err){savingError=`Unable to save this place: ${err.message||'Unknown error'}`;}
   finally{busy=false;refresh()}
  }
