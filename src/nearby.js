@@ -46,7 +46,7 @@ export function createNearby({isActive,update,supabase,getUser}){
     ${mapShown?`<section class="panel nearby-map-panel" id="carebridge-embedded-map" aria-label="Google Maps viewer"><div class="nearby-map-header"><div><h2>${current?safe(current.name):'Google Maps'}</h2><p>${current?safe(current.address||'Saved coordinates'):target?safe(typeof target==='string'?target:'Select a location'):'Search for a place to view a map'}</p></div></div>
      ${embed?`<iframe class="nearby-map" title="Google Maps for ${safe(current?.name||'nearby places')}" src="${safe(embed)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`:`<div class="nearby-map nearby-map-placeholder">🗺️<span>Choose a category and search to see Google Maps</span></div>`}
      <div class="nearby-iframe-actions">${lookup?`<a class="btn green" href="${safe(lookup)}" target="_blank" rel="noopener noreferrer">Open in Google Maps ↗</a>`:''}${current?`<a class="btn outline" href="${safe(buildDirectionsUrl(current))}" target="_blank" rel="noopener noreferrer">Get directions ↗</a>`:''}</div>
-     <p class="nearby-map-caption">If the embedded map is unavailable, use “Open in Google Maps.” Google does not guarantee this no-key iframe format.</p></section>`:''}
+     </section>`:''}
    </div>
    `;
  }
