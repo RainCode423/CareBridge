@@ -91,7 +91,7 @@ function render({focus=false}={}){
   document.getElementById('header-date').textContent=longDate();
   document.getElementById('signout-btn').hidden=!user;
   document.getElementById('refresh-btn').hidden=!elderId;
-  document.getElementById('account-role').textContent=user?(role==='senior'?'OLDER ADULT ACCOUNT':role==='family'?'FAMILY ACCOUNT':'ACCOUNT SETUP'):'SECURE SIGN IN';
+  document.getElementById('account-role').textContent=user?(role==='senior'?'SENIOR ACCOUNT':role==='family'?'FAMILY ACCOUNT':'ACCOUNT SETUP'):'SECURE SIGN IN';
   if(user&&elderId&&role){renderNav();document.getElementById('app').innerHTML=({home:viewHome,planner:viewPlanner,nearby:nearby.viewNearby,recipes:webRecipes.view,family:viewFamily,settings:viewSettings})[view]();}
   else{document.getElementById('desktop-nav').innerHTML='';document.getElementById('mobile-nav').innerHTML='';document.getElementById('app').innerHTML=user?setupUI():authUI()}
   if(view==='nearby'&&user&&elderId&&role==='senior')nearby.afterRender();
