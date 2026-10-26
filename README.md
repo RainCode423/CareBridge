@@ -5,14 +5,21 @@ CareBridge helps an older adult check in each day, save a mood or note, manage g
 ## Files
 
 ```text
-CareBridge_GitHub_Supabase/
+CareBridge/
 ├── index.html                 # Interface: mobile-friendly CareBridge
 ├── src/
-│   ├── app.js                 # App logic, Supabase Auth and database calls
+│   ├── app.js                 # Bootstrap, session lifecycle and events
+│   ├── data.js                # Supabase response/error helper
+│   ├── screens.js             # Check-ins, family, wellness, account views
+│   ├── planner.js             # Shared task planner and calendar
+│   ├── utils.js               # Dates, formatting and safe HTML escaping
 │   ├── config.example.js      # Copy this to config.js
 │   └── config.js              # YOU create this; ignored by Git
 ├── supabase/
 │   └── schema.sql             # Database tables, RLS, invitation-code functions
+├── tests/
+│   └── planner.test.mjs         # Node built-in tests (no npm install)
+├── package.json                # Optional test runner; no build step
 ├── .gitignore
 ├── START_HERE.txt             # Short setup checklist
 └── README.md
@@ -134,23 +141,46 @@ This upgraded folder adds an accessible **My planner / Care planner** tab for bo
 
 1. **Keep your existing `src/config.js`.** It contains your project URL and publishable key and is excluded from the downloadable ZIP and from Git by `.gitignore`.
 2. Your CareBridge Supabase project's `care_tasks` and `care_task_completions` tables and associated policies have **already been created** for the connected project. Do not re-run `schema.sql`, which is intended for a new empty project.
-3. Replace your project's `index.html` and `src/app.js` with the ones from this updated ZIP (or open the new folder and copy your `src/config.js` into its `src` folder).
+3. From the project directory, run `git pull origin main` to receive the latest modules. Keep `src/config.js` local and do not commit it.
 4. In VS Code, start `python3 -m http.server 5500` and open `http://localhost:5500`. Refresh with Cmd+Shift+R if cached.
 5. Test with the senior account and a linked caregiver account in separate browser sessions. Caregiver: go to **Care planner → Add a task**, fill out a doctor's appointment, save. Senior: refresh, open **My planner** and mark that task done. Caregiver: refresh and see completion.
 
 `supabase/planner_migration.sql` documents the exact database changes for a different or future Supabase project; only run it once for each project. The connected database was updated already.
 
 **Limitations:** This is a task and acknowledgment system, not a medication dispensing or emergency response app. No scheduled browser notifications, SMS, email, push alerts, or automatic background reminders are included. Check off a medication task only as an acknowledgment, not as proof a drug was taken. Browser sync occurs on manual refresh or when the app regains focus.
-## Source organization (ES modules)
 
-CareBridge now uses separate native JavaScript modules:
+## Source code structure (ES modules)
 
-- `src/app.js` — entry point, login, Supabase session, and event handlers
-- `src/screens.js` — check-in, family, wellness, settings, and login screens
-- `src/planner.js` — shared tasks, calendar, recurrence, and task editor
-- `src/data.js` — shared Supabase response/error helper
-- `src/utils.js` — reusable date and HTML-safe formatting utilities
-- `src/config.example.js` — public project config template; keep `src/config.js` local
-- `tests/planner.test.mjs` — Node.js built-in tests (`node --test tests/*.test.mjs`)
+- `src/app.js`: small entry point and event controller (auth, Supabase session, check-ins and user actions).
+- `src/screens.js`: reusable page renderers for seniors, family, wellness and account setup.
+- `src/planner.js`: shared task planner, category filters, recurring dates, calendar toggle and task editor.
+- `src/data.js`: Supabase query result/error helper.
+- `src/utils.js`: date and HTML formatting helpers.
+- `src/config.example.js`: public credentials template; copy to `src/config.js` (ignored by Git).
 
-There is no bundler or package installation. Run the app using `python3 -m http.server 5501` in the repository root. This reorganization requires no database migration.
+Uses native browser JavaScript ES modules and Python's static server; no build tool or `npm install` is necessary. Changes are automatically picked up after a hard refresh.
+
+### Run automated tests
+
+With Node installed, run `node --test tests/*.test.mjs` (or `npm test`). Neither command requires installing packages. The tests cover planner recurrence, calendar visibility, HTML escaping, and edit permissions in the UI. The real Supabase RLS permissions are enforced by the database, not these client-side tests.
+
+For your existing Supabase project, **do not rerun the original SQL schema**: the database is already configured and no database changes are needed for this refactor.
+
+## Nearby Places — Google Maps (new)
+
+The **Nearby** tab is available for the older adult account. It adapts the category-based discovery, map markers, and Google Maps directions concept from [WhatsNearby](https://github.com/Bwang101/WhatsNearby) with larger, accessible controls.
+
+**Setup is required before live Google Maps results appear:**
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/) and select/create a project. Configure a billing account; Google Maps Platform APIs may incur usage charges.
+2. Enable **Maps JavaScript API** and **Places API (New)** in **APIs & Services → Library**.
+3. In **APIs & Services → Credentials**, create an API key. Set **Application restrictions → Websites** and allow the local addresses you use for development, e.g. `http://localhost:5500/*`, `http://localhost:5501/*`, and `http://127.0.0.1:5501/*` (add your deployed website hostname before publishing). Set **API restrictions** to Maps JavaScript API and Places API (New). Set usage quotas/budget alerts in Google Cloud to manage cost.
+4. In VS Code run `cp src/maps-config.example.js src/maps-config.js`. Open `src/maps-config.js`, enter your **browser key** in `GOOGLE_MAPS_BROWSER_KEY`, and optionally set `GOOGLE_MAP_ID` to a Google Cloud Maps **JavaScript map ID**. `DEMO_MAP_ID` is suitable **only for local testing**.
+5. Start CareBridge as usual with `python3 -m http.server 5501`, open `http://localhost:5501`, sign in as the older adult, then select **Nearby**.
+6. Choose a category, then **Use my location** (browser permission required) **or** search by city/ZIP. View places and markers; **Directions** opens Google Maps externally.
+
+`src/maps-config.js` is excluded by `.gitignore`, and should not be committed to the repository. Browser Maps keys are *not secret* once used client-side: protect them with **HTTP referrer restrictions, API restrictions, and quotas**. Never use a Supabase service-role key or a server-side Google key in browser code.
+
+**Privacy:** The Nearby page does not write location or search history into Supabase. The location is used in browser memory for the current session only; Google will receive map/search requests when the user initiates a search. Location requires a secure context (localhost works for local development; deployment generally needs HTTPS). The screen does not guarantee accessibility features, current hours, transportation, or medical availability; confirm details before going.
+
+No Supabase schema changes are required for this page. Google API calls cannot be tested live until you provide a properly configured browser key and billing.
