@@ -1,48 +1,42 @@
-/** Pure helpers for the nearby-place explorer; safe to test without Google Maps. */
-export const PLACE_CATEGORIES = Object.freeze({
-  pharmacy: {label:'Pharmacies',icon:'💊',types:['pharmacy'],query:'pharmacies'},
-  clinic: {label:'Doctors & clinics',icon:'🩺',types:['doctor'],query:'medical clinics'},
-  groceries: {label:'Groceries',icon:'🛒',types:['grocery_store'],query:'grocery stores'},
-  parks: {label:'Parks',icon:'🌳',types:['park'],query:'parks'},
-  library: {label:'Libraries',icon:'📚',types:['library'],query:'public libraries'},
-  community: {label:'Senior centers',icon:'🤝',types:[],query:'senior community centers'},
-  cafe: {label:'Cafés',icon:'☕',types:['cafe'],query:'cafes'}
+/** Key-free Google Maps URL helpers for CareBridge's saved places and categories. */
+export const PLACE_CATEGORIES=Object.freeze({
+ pharmacy:{label:'Pharmacies',icon:'💊',query:'pharmacies'},
+ clinic:{label:'Doctors & clinics',icon:'🩺',query:'doctors and medical clinics'},
+ groceries:{label:'Groceries',icon:'🛒',query:'grocery stores'},
+ parks:{label:'Parks',icon:'🌳',query:'parks'},
+ library:{label:'Libraries',icon:'📚',query:'public libraries'},
+ community:{label:'Senior centers',icon:'🤝',query:'senior centers'},
+ cafe:{label:'Cafés',icon:'☕',query:'cafes'}
 });
-
-/** Accept both Google PlacesService (Legacy) results and newer Place objects. */
-export function normalizePlace(place) {
-  const loc=place?.geometry?.location||place?.location;
-  const lat=typeof loc?.lat==='function'?loc.lat():Number(loc?.lat);
-  const lng=typeof loc?.lng==='function'?loc.lng():Number(loc?.lng);
-  if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)return null;
-  const rating=Number(place?.rating);
-  const count=Number(place?.user_ratings_total??place?.userRatingCount);
-  return {
-    id:String(place.place_id||place.id||''),
-    name:String(place.name||place.displayName||'Unnamed place'),
-    address:String(place.vicinity||place.formatted_address||place.formattedAddress||'Address not available'),
-    lat,lng,
-    rating:Number.isFinite(rating)&&place.rating!=null?rating:null,
-    reviewCount:Number.isFinite(count)&&(place.user_ratings_total!=null||place.userRatingCount!=null)?count:null
-  };
+export function hasCoordinates(b){
+ const lat=Number(b?.lat),lng=Number(b?.long);
+ return b?.lat!==null&&b?.lat!==undefined&&b?.lat!==''&&b?.long!==null&&b?.long!==undefined&&b?.long!==''&&Number.isFinite(lat)&&Number.isFinite(lng)&&Math.abs(lat)<=90&&Math.abs(lng)<=180;
 }
-
-export function distanceMiles(origin, destination){
-  if(!origin) return null;
-  const radians=n=>n*Math.PI/180;
-  const latDelta=radians(destination.lat-origin.lat),lonDelta=radians(destination.lng-origin.lng);
-  const a=Math.sin(latDelta/2)**2+Math.cos(radians(origin.lat))*Math.cos(radians(destination.lat))*Math.sin(lonDelta/2)**2;
-  return 3958.7613*2*Math.atan2(Math.sqrt(a),Math.sqrt(Math.max(0,1-a)));
+export function placeQuery(b){
+ if(hasCoordinates(b))return `${Number(b.lat)},${Number(b.long)}`;
+ return String(b?.address||b?.name||'').trim();
 }
-
-export function directionsUrl(place,travelMode='driving'){
-  const params=new URLSearchParams({api:'1',destination:`${place.lat},${place.lng}`,travelmode:travelMode});
-  if(place.id) params.set('destination_place_id',place.id);
-  return `https://www.google.com/maps/dir/?${params}`;
+export function categoryQuery(category,location=''){
+ const c=PLACE_CATEGORIES[category]||PLACE_CATEGORIES.pharmacy;
+ const base=c.query;
+ return location?.trim()?`${base} near ${location.trim()}`:base;
 }
-export function placeMapUrl(place){
-  const params=new URLSearchParams({api:'1',query:`${place.lat},${place.lng}`});
-  if(place.id)params.set('query_place_id',place.id);
-  return `https://www.google.com/maps/search/?${params}`;
+export function buildMapEmbedUrl(input){
+ const query=typeof input==='string'?input.trim():placeQuery(input);
+ if(!query)return '';
+ // A lightweight Google Maps iframe URL. Unlike the supported Maps Embed API,
+ // this unkeyed URL format is not officially guaranteed by Google.
+ return `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=14&output=embed`;
 }
-export const isMapsKeyConfigured=value=>typeof value==='string'&&value.trim().length>10&&!value.includes('YOUR_');
+export function buildMapsSearchUrl(input){
+ const query=typeof input==='string'?input.trim():placeQuery(input);
+ return query?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`:'';
+}
+export function buildDirectionsUrl(business){
+ const destination=placeQuery(business);
+ return destination?`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`:'';
+}
+export function normalizeBusiness(b){
+ if(!b||!b.id||!b.name||!(hasCoordinates(b)||String(b.address||'').trim()))return null;
+ return {id:String(b.id),name:String(b.name).slice(0,120),category:String(b.category||'other').slice(0,48),address:String(b.address||'').slice(0,240),lat:hasCoordinates(b)?Number(b.lat):null,long:hasCoordinates(b)?Number(b.long):null};
+}
