@@ -1,9 +1,8 @@
-/** Elder-friendly place finder. Google Maps is loaded only after an explicit search. */
+/** Elder-friendly place finder powered by Google Maps and Places API (Legacy). */
 import {escapeHTML,intro} from './utils.js';
 import {PLACE_CATEGORIES,normalizePlace,distanceMiles,directionsUrl,placeMapUrl,isMapsKeyConfigured} from './nearby-core.js';
 
 const showError=err=>err?.message||'Please try your search again.';
-const fields=['id','displayName','formattedAddress','location','rating','userRatingCount'];
 let mapsReadyPromise=null;
 async function loadGoogleMaps(){
   if(mapsReadyPromise)return mapsReadyPromise;
@@ -23,17 +22,39 @@ async function loadGoogleMaps(){
         const cleanup=()=>{clearTimeout(timeout);delete window[callback];};
         window[callback]=()=>{cleanup();resolve();};
         script.async=true;
-        script.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&loading=async&callback=${callback}`;
+        script.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&loading=async&libraries=places&callback=${callback}`;
         script.onerror=()=>{cleanup();script.remove();reject(new Error('Could not load Google Maps. Check your API key and allowed website addresses.'))};
         document.head.appendChild(script);
       });
     }
-    const [{Map,InfoWindow},{Place,SearchNearbyRankPreference},{AdvancedMarkerElement}]=await Promise.all([
-      window.google.maps.importLibrary('maps'),window.google.maps.importLibrary('places'),window.google.maps.importLibrary('marker')
+    const [mapsLibrary,placesLibrary,markerLibrary]=await Promise.all([
+      window.google.maps.importLibrary('maps'),
+      window.google.maps.importLibrary('places'),
+      window.google.maps.importLibrary('marker')
     ]);
-    return {Map,InfoWindow,Place,SearchNearbyRankPreference,AdvancedMarkerElement,mapId};
+    const PlacesService=placesLibrary.PlacesService||window.google.maps.places?.PlacesService;
+    const PlacesServiceStatus=placesLibrary.PlacesServiceStatus||window.google.maps.places?.PlacesServiceStatus;
+    if(!PlacesService||!PlacesServiceStatus)throw new Error('Google Places (Legacy) is unavailable in this project. Enable Places API (Legacy) in the existing Google Cloud project.');
+    return {Map:mapsLibrary.Map,InfoWindow:mapsLibrary.InfoWindow,PlacesService,PlacesServiceStatus,AdvancedMarkerElement:markerLibrary.AdvancedMarkerElement,mapId};
   })();
   try{return await mapsReadyPromise}catch(error){mapsReadyPromise=null;throw error}
+}
+
+/** Legacy Places JavaScript methods use callbacks, not promises. */
+function legacySearch(service,method,options,statuses){
+  return new Promise((resolve,reject)=>{
+    service[method](options,(places,status)=>{
+      if(status===statuses.OK){resolve(places||[]);return;}
+      if(status===statuses.ZERO_RESULTS){resolve([]);return;}
+      if(status===statuses.REQUEST_DENIED){
+        reject(new Error('Google Places (Legacy) denied this search. Check that Places API (Legacy) is enabled on your existing Google Cloud project, your browser key allows this API, and billing is active.'));return;
+      }
+      if(status===statuses.OVER_QUERY_LIMIT){
+        reject(new Error('Google Places search quota exceeded. Check your project quota and billing.'));return;
+      }
+      reject(new Error('Google Places (Legacy) search failed: '+String(status||'unknown error')));
+    });
+  });
 }
 
 export function createNearby({isActive,update}){
@@ -88,16 +109,24 @@ export function createNearby({isActive,update}){
     busy=true;searched=false;results=[];message='Searching Google Maps…';refresh();
     const id=++queryId;
     try{
-      const {Place,SearchNearbyRankPreference}=await loadGoogleMaps();
+      const {PlacesService,PlacesServiceStatus}=await loadGoogleMaps();
       const item=PLACE_CATEGORIES[category];
-      const request={fields,maxResultCount:10};
-      const response=mode==='gps'&&origin&&item.types.length?
-        await Place.searchNearby({...request,includedPrimaryTypes:item.types,locationRestriction:{center:origin,radius:6000},rankPreference:SearchNearbyRankPreference.DISTANCE}):
-        await Place.searchByText({...request,textQuery:mode==='gps'?`${item.query} near me`:`${item.query} in ${city}`, ...(mode==='gps'&&origin?{locationBias:{center:origin,radius:6000}}:{})});
+      // The Maps JavaScript PlacesService handles these requests in the browser.
+      // Do not fetch maps.googleapis.com/maps/api/place/nearbysearch/json from Chrome.
+      const service=new PlacesService(document.createElement('div'));
+      let found;
+      if(mode==='gps'&&origin){
+        const request={location:origin,radius:5000};
+        if(item.types.length)request.type=item.types[0];
+        else request.keyword=item.query;
+        found=await legacySearch(service,'nearbySearch',request,PlacesServiceStatus);
+      }else{
+        found=await legacySearch(service,'textSearch',{query:`${item.query} in ${city}`},PlacesServiceStatus);
+      }
       if(id!==queryId)return;
       const unique=new Map();
-      for(const raw of response.places||[]){const place=normalizePlace(raw);if(place)unique.set(place.id||`${place.lat},${place.lng}`,place)}
-      results=[...unique.values()];searched=true;
+      for(const raw of found){const place=normalizePlace(raw);if(place)unique.set(place.id||`${place.lat},${place.lng}`,place)}
+      results=[...unique.values()].slice(0,15);searched=true;
       message=results.length?`${results.length} places found${mode==='city'?` around ${city}`:' near your location'}. Select Directions to open Google Maps.`:'Try another category or a nearby city.';
     }catch(err){if(id!==queryId)return;message=showError(err);searched=true;results=[];}
     finally{if(id===queryId){busy=false;refresh()}}
