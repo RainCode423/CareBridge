@@ -19,6 +19,10 @@ const initialPrefs={elderName:'Your loved one',familyName:'Family',hour:20,font:
 let uiPrefs={};
 try{uiPrefs=JSON.parse(localStorage.getItem(STORE))||{}}catch(_){uiPrefs={}}
 let state={checkins:{},notes:{},reminders:[],tasks:[],completions:[],prefs:{...initialPrefs,font:uiPrefs.font||'normal',contrast:!!uiPrefs.contrast},demoScenario:false};
+// Identify only the two old starter reminders; personal reminders are preserved.
+const isStarterReminder=r=>
+  (r.title==='Drink some water' && r.subtitle==='A gentle reminder' && r.icon==='💧') ||
+  (r.title==='Get a little movement' && r.subtitle==='At your own pace' && r.icon==='🌿');
 let user=null,role=null,elderId=null,links=[],busy=false,authMode='signin',infoText='',accountError='';
 let view='home', modalType=null,needReason='Just want a call',toastTimer=null,invitationCode='';
 let editingTaskId=null;
@@ -56,7 +60,12 @@ async function reloadData(){
     const followMap=new Map(followups.map(f=>[f.day,f]));
     state.checkins=Object.fromEntries(checkins.map(c=>[c.day,{status:c.status,at:c.checked_at,mood:c.mood,reason:c.reason,followedUp:followMap.has(c.day),followupBy:followMap.get(c.day)?.caregiver_id||null}]));
     state.notes=Object.fromEntries(notes.map(n=>[n.day,n.note]));
-    state.reminders=reminders.map(r=>({id:r.id,title:r.title,subtitle:r.subtitle,icon:r.icon,dates:r.done_dates||[]}));
+    state.reminders=reminders.filter(r=>!isStarterReminder(r)).map(r=>({id:r.id,title:r.title,subtitle:r.subtitle,icon:r.icon,dates:r.done_dates||[]}));
+// Clean up previously seeded reminders for this senior account only.
+if(role==='senior'){
+  const defaults=reminders.filter(isStarterReminder);
+  await Promise.allSettled(defaults.map(r=>request(supabase.from('reminders').delete().eq('id',r.id).eq('elder_id',elderId))));
+}
     state.tasks=tasks;state.completions=completions;
     state.prefs={...state.prefs,elderName:profile.elder_name,familyName:profile.family_name,hour:profile.checkin_hour};
     accountError='';render();
@@ -173,10 +182,7 @@ document.addEventListener('submit',async e=>{
  }
  if(e.target.id==='senior-form'){
   e.preventDefault();if(busy)return;busy=true;
-  try{const elder_name=document.getElementById('senior-name').value.trim().slice(0,35);await request(supabase.from('care_profiles').insert({user_id:user.id,elder_name}));await request(supabase.from('reminders').insert([
-    {elder_id:user.id,title:'Drink some water',subtitle:'A gentle reminder',icon:'💧'},
-    {elder_id:user.id,title:'Get a little movement',subtitle:'At your own pace',icon:'🌿'}
-  ]));view='home';await loadAccount();flash('Your SeniorCare account is ready!')}
+  try{const elder_name=document.getElementById('senior-name').value.trim().slice(0,35);await request(supabase.from('care_profiles').insert({user_id:user.id,elder_name}));view='home';await loadAccount();flash('Your SeniorCare account is ready!')}
   catch(err){flash(`Could not create profile: ${err.message}`);await loadAccount()}
   finally{busy=false}
  }
