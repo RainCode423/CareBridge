@@ -37,7 +37,7 @@ export function createWebRecipes(){
    '<div class="field"><label for="recipe-avoid">Ingredients to avoid (optional)</label><input id="recipe-avoid" placeholder="peanuts, milk" value="'+h(prefs.avoid)+'"></div></div>'+
    '<label class="recipe-check"><input type="checkbox" id="recipe-vegetarian" '+(prefs.vegetarian?'checked':'')+'> Show vegetarian-category recipes only</label>'+
    '<div class="inline-actions"><button class="btn green" type="submit" '+(loading?'disabled':'')+'>'+(loading?'Searching…':'Find real recipes')+'</button><button type="button" class="btn outline" data-recipe-random '+(loading?'disabled':'')+'>Surprise me</button></div></form>'+
-   '<p class="mini-caption">Ingredient search may use your first two pantry items. Matching is approximate; only the first available recipes are displayed. Cuisine labels and dietary categories come from the recipe source.</p></div>';
+   '</div>';
   return '<div class="recipe-page"><div class="intro"><div class="eyebrow">SeniorCare Kitchen</div><h1>What can we cook today? 🍳</h1><p>Use what is in your kitchen to discover recipes with clear instructions.</p></div>'+
     controls+(selected?detail():'<section class="recipe-results" aria-live="polite">'+
     (error?'<div class="error-notice" role="alert">'+h(error)+'</div>':'')+
