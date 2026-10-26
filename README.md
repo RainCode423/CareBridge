@@ -166,21 +166,17 @@ With Node installed, run `node --test tests/*.test.mjs` (or `npm test`). Neither
 
 For your existing Supabase project, **do not rerun the original SQL schema**: the database is already configured and no database changes are needed for this refactor.
 
-## Nearby Places — Google Maps + Places API (Legacy)
+## Nearby Places — Google Maps iframe and saved places (no Google API key)
 
-The **Nearby** tab is available for the older adult account. It adapts the category-based discovery, map markers, and Google Maps directions concept from [WhatsNearby](https://github.com/Bwang101/WhatsNearby) with larger, accessible controls.
+The older-adult **Nearby** page uses Google Maps's `www.google.com/maps?q=...&output=embed` iframe format for viewing searches and saved places. It does **not** request Places API access or load Maps JavaScript API. The iframe format is not Google's guaranteed Maps Embed API: if it stops working, open the search using **Open in Google Maps**, which uses the officially supported key-free Maps URLs.
 
-**Setup is required before live Google Maps results appear:**
+Features:
+- Choose Pharmacies, Doctors & clinics, Groceries, Parks, Libraries, Senior centers, or Cafés.
+- Enter a city or ZIP and click **Find on map**, or explicitly allow device location. The map shows a Google Maps search query, not a structured list returned to CareBridge.
+- **My saved places** reads from the private `public.businesses` table in Supabase. Save a name and address, search the list, select a saved place, remove one, or open Google Maps directions.
+- **Hide map / Show map** provides a larger saved-place list.
+- No Google Maps API key, map ID, or JavaScript maps loader is used. The previous `src/maps-config.js` can remain locally but is ignored.
 
-1. Open [Google Cloud Console](https://console.cloud.google.com/) and select/create a project. Configure a billing account; Google Maps Platform APIs may incur usage charges.
-2. Enable **Maps JavaScript API** and **Places API (Legacy)** in **APIs & Services → Library**. Legacy Places is only available to existing Google Cloud projects that already have access. New projects generally cannot activate this legacy service.
-3. In **APIs & Services → Credentials**, create an API key. Set **Application restrictions → Websites** and allow the local addresses you use for development, e.g. `http://localhost:5500/*`, `http://localhost:5501/*`, and `http://127.0.0.1:5501/*` (add your deployed website hostname before publishing). Set **API restrictions** to Maps JavaScript API and Places API (Legacy). Set usage quotas/budget alerts in Google Cloud to manage cost.
-4. In VS Code run `cp src/maps-config.example.js src/maps-config.js`. Open `src/maps-config.js`, enter your **browser key** in `GOOGLE_MAPS_BROWSER_KEY`, and optionally set `GOOGLE_MAP_ID` to a Google Cloud Maps **JavaScript map ID**. `DEMO_MAP_ID` is suitable **only for local testing**.
-5. Start CareBridge as usual with `python3 -m http.server 5501`, open `http://localhost:5501`, sign in as the older adult, then select **Nearby**.
-6. Choose a category, then **Use my location** (browser permission required) **or** search by city/ZIP. View places and markers; **Directions** opens Google Maps externally.
+Database setup: The connected CareBridge Supabase project already has the `businesses` table after this update. For a different project, apply `supabase/businesses_migration.sql` once. Each user's saved places are isolated by row-level security policies. The page does not store GPS coordinates obtained from the browser.
 
-`src/maps-config.js` is excluded by `.gitignore`, and should not be committed to the repository. Browser Maps keys are *not secret* once used client-side: protect them with **HTTP referrer restrictions, API restrictions, and quotas**. Never use a Supabase service-role key or a server-side Google key in browser code.
-
-**Privacy:** The Nearby page does not write location or search history into Supabase. The location is used in browser memory for the current session only; Google will receive map/search requests when the user initiates a search. Location requires a secure context (localhost works for local development; deployment generally needs HTTPS). The screen does not guarantee accessibility features, current hours, transportation, or medical availability; confirm details before going.
-
-This browser implementation uses the callback-based `google.maps.places.PlacesService.nearbySearch()` for current location and `.textSearch()` for city/ZIP searches, analogous to WhatsNearby's Legacy Places searches. It does not call the server-only `/maps/api/place/nearbysearch/json` endpoint directly. No Supabase schema changes are required. Google calls must be verified on your device using an authorized browser key and a Legacy-enabled project.
+Run with `python3 -m http.server 5501` and visit `http://localhost:5501` with your older-adult account. Google Maps URLs search/directions are supported without API keys; Google's official Maps Embed API requires an API key, so this lightweight iframe format might vary by browser.
