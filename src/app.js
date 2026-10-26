@@ -64,7 +64,7 @@ async function reloadData(){
 }
 const mutate=async(fn,success)=>{if(busy)return;busy=true;try{await fn();await reloadData();flash(success)}catch(err){flash(`Could not save: ${err.message||'unknown error'}`)}finally{busy=false}};
 const todays=()=>state.checkins[todayKey()]||null;
-const tabItems=()=>role==='family'?[['family','♡','Family'],['planner','▦','Care planner'],['settings','⚙','Settings']]:[['home','⌂','Today'],['planner','▦','My planner'],['nearby','📍','Nearby'],['recipes','🍲','Recipes'],['routine','☑','Wellness'],['settings','⚙','Settings']];
+const tabItems=()=>role==='family'?[['family','♡','Family'],['planner','▦','Care planner'],['settings','⚙','Settings']]:[['home','⌂','Today'],['planner','▦','My planner'],['nearby','📍','Nearby'],['recipes','🍲','Recipes'],['settings','⚙','Settings']];
 planner=createPlanner({
   state,
   getRole:()=>role, getUser:()=>user,
@@ -77,7 +77,7 @@ const screens=createScreens({
   getRole:()=>role,getLinks:()=>links,getInvitationCode:()=>invitationCode,
   getAuthMode:()=>authMode,getInfoText:()=>infoText,getUserId:()=>user?.id
 });
-const {viewHome,viewRoutine,viewFamily,viewSettings,authUI,setupUI,familyStatus}=screens;
+const {viewHome,viewFamily,viewSettings,authUI,setupUI,familyStatus}=screens;
 const nearby=createNearby({isActive:()=>view==='nearby',update:()=>{if(view==='nearby')render()},supabase,getUser:()=>user});
 function renderNav(){
   document.getElementById('desktop-nav').innerHTML=tabItems().map(([id,icon,name])=>`<button type="button" class="nav-btn" data-view="${id}" ${id===view?'aria-current="page"':''}><span class="nav-ico" aria-hidden="true">${icon}</span>${name}</button>`).join('');
@@ -92,7 +92,7 @@ function render({focus=false}={}){
   document.getElementById('signout-btn').hidden=!user;
   document.getElementById('refresh-btn').hidden=!elderId;
   document.getElementById('account-role').textContent=user?(role==='senior'?'OLDER ADULT ACCOUNT':role==='family'?'FAMILY ACCOUNT':'ACCOUNT SETUP'):'SECURE SIGN IN';
-  if(user&&elderId&&role){renderNav();document.getElementById('app').innerHTML=({home:viewHome,planner:viewPlanner,nearby:nearby.viewNearby,recipes:webRecipes.view,routine:viewRoutine,family:viewFamily,settings:viewSettings})[view]();}
+  if(user&&elderId&&role){renderNav();document.getElementById('app').innerHTML=({home:viewHome,planner:viewPlanner,nearby:nearby.viewNearby,recipes:webRecipes.view,family:viewFamily,settings:viewSettings})[view]();}
   else{document.getElementById('desktop-nav').innerHTML='';document.getElementById('mobile-nav').innerHTML='';document.getElementById('app').innerHTML=user?setupUI():authUI()}
   if(view==='nearby'&&user&&elderId&&role==='senior')nearby.afterRender();
   if(accountError)document.getElementById('app').insertAdjacentHTML('afterbegin',`<div class="error-notice" role="alert">${escapeHTML(accountError)} <button class="small-btn" data-action="retry">Retry</button></div>`);
@@ -106,7 +106,7 @@ function renderModal(){const host=document.getElementById('modal-host');if(!moda
   host.innerHTML=`<div class="modal-backdrop" id="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-heading"><div><div class="eyebrow">CareBridge support</div><h2 id="modal-title">What would help today?</h2><p>It's okay to ask for a hand. Choose one option.</p></div><button class="icon-button" data-action="close-modal" aria-label="Close">×</button></div><div class="help-choice-list">${[['Just want a call','☎️ A friendly call'],['Help with errands','🛍️ Help with errands'],['Not feeling well','🤒 Not feeling well'],['Something else','💬 Something else']].map(([reason,label])=>`<button class="help-choice" data-reason="${escapeHTML(reason)}" aria-pressed="${String(needReason===reason)}">${label}</button>`).join('')}</div><div class="notice warning">This request is stored in Supabase for linked caregivers to view. It will NOT send texts, calls, or contact emergency services. If you need immediate assistance, contact local emergency services directly.</div><div class="inline-actions"><button class="btn green" data-action="save-help">Save help request</button><button class="btn outline" data-action="close-modal">Cancel</button></div></section></div>`;
   host.querySelector('[data-action="close-modal"]').focus();
 }
-function speak(){if(!('speechSynthesis' in window)){flash('Speech playback is unavailable in this browser.');return}window.speechSynthesis.cancel();const text=view==='home'?(todays()?.status==='okay'?`You've checked in today, ${state.prefs.elderName}. Thank you.`:`Hello, ${state.prefs.elderName}. Press I'm okay today to check in, or I could use help if you need support.`):view==='family'?`${state.prefs.elderName}'s family check-in status. ${familyStatus().label.replace(/<[^>]*>/g,'')}.`:view==='routine'?'Your daily routine. Check off any reminders you finish today.': 'Settings. Adjust font size, contrast, and your check-in time.';const utterance=new SpeechSynthesisUtterance(text);utterance.rate=.88;window.speechSynthesis.speak(utterance)}
+function speak(){if(!('speechSynthesis' in window)){flash('Speech playback is unavailable in this browser.');return}window.speechSynthesis.cancel();const text=view==='home'?(todays()?.status==='okay'?`You've checked in today, ${state.prefs.elderName}. Thank you.`:`Hello, ${state.prefs.elderName}. Press I'm okay today to check in, or I could use help if you need support.`):view==='family'?`${state.prefs.elderName}'s family check-in status. ${familyStatus().label.replace(/<[^>]*>/g,'')}.`:'Settings. Adjust font size, contrast, and your check-in time.';const utterance=new SpeechSynthesisUtterance(text);utterance.rate=.88;window.speechSynthesis.speak(utterance)}
 
 async function signOut(){nearby.reset();webRecipes.reset();await supabase.auth.signOut();user=null;role=null;elderId=null;links=[];invitationCode='';state.checkins={};state.notes={};state.reminders=[];state.tasks=[];state.completions=[];authMode='signin';view='home';infoText='';render()}
 async function initialize(){try{const {data:{user:current},error}=await supabase.auth.getUser();if(error)throw error;user=current;if(user)await loadAccount();else render()}catch(err){if(err.name==='AuthSessionMissingError'){user=null;render()}else{accountError=err.message;render()}}}
@@ -132,7 +132,6 @@ document.addEventListener('click',async e=>{
  const mood=e.target.closest('[data-mood]');if(mood&&role==='senior'&&todays()){await mutate(()=>request(supabase.from('check_ins').update({mood:mood.dataset.mood}).eq('elder_id',elderId).eq('day',todayKey())),'Mood saved to Supabase.');return}
  const reason=e.target.closest('[data-reason]');if(reason){needReason=reason.dataset.reason;renderModal();return}
  const font=e.target.closest('[data-font]');if(font){state.prefs.font=font.dataset.font;save();render();flash('Text size updated on this device.');return}
- const remove=e.target.closest('[data-remove-task]');if(remove&&role==='senior'){await mutate(()=>request(supabase.from('reminders').delete().eq('id',remove.dataset.removeTask).eq('elder_id',elderId)),'Reminder removed.');return}
  const a=e.target.closest('[data-action]');if(!a)return;
  const action=a.dataset.action;
  if(action==='new-care-task'&&elderId){openTaskModal();return}
@@ -198,10 +197,6 @@ document.addEventListener('submit',async e=>{
      else await request(supabase.from('care_tasks').insert({...payload,elder_id:elderId,created_by:user.id}));
      modalType=null;editingTaskId=null;renderModal();await reloadData();flash('Care planner saved and shared with your care circle.');
    }catch(err){flash('Could not save task: '+(err.message||'unknown error'))}finally{busy=false}
- }
- if(e.target.id==='add-task-form'&&role==='senior'){
-  e.preventDefault();const title=document.getElementById('task-title')?.value.trim().slice(0,55);if(!title)return;
-  await mutate(()=>request(supabase.from('reminders').insert({elder_id:elderId,title,subtitle:'Your personal reminder',icon:'🔔'})),'Your reminder was added.');
  }
  if(e.target.id==='settings-form'&&role==='senior'){
   e.preventDefault();const elder_name=document.getElementById('elder-name').value.trim().slice(0,35)||'My Profile';const family_name=document.getElementById('family-name').value.trim().slice(0,35)||'Family';const checkin_hour=Number(document.getElementById('checkin-hour').value);
