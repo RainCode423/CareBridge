@@ -1,168 +1,116 @@
-/** Elder-friendly place finder powered by Google Maps and Places API (Legacy). */
+/** Senior-friendly Google Maps iframe, category searches, and private saved places. */
 import {escapeHTML,intro} from './utils.js';
-import {PLACE_CATEGORIES,normalizePlace,distanceMiles,directionsUrl,placeMapUrl,isMapsKeyConfigured} from './nearby-core.js';
+import {PLACE_CATEGORIES,categoryQuery,buildMapEmbedUrl,buildMapsSearchUrl,buildDirectionsUrl,normalizeBusiness} from './nearby-core.js';
 
-const showError=err=>err?.message||'Please try your search again.';
-let mapsReadyPromise=null;
-async function loadGoogleMaps(){
-  if(mapsReadyPromise)return mapsReadyPromise;
-  mapsReadyPromise=(async()=>{
-    let key='',mapId='DEMO_MAP_ID';
-    try{
-      const config=await import('./maps-config.js');
-      key=config.GOOGLE_MAPS_BROWSER_KEY;
-      mapId=config.GOOGLE_MAP_ID||mapId;
-    }catch(_){throw new Error('Add src/maps-config.js using the Google Maps setup instructions to enable nearby searches.');}
-    if(!isMapsKeyConfigured(key))throw new Error('Add a valid Google Maps browser API key to src/maps-config.js.');
-    if(!window.google?.maps?.importLibrary){
-      await new Promise((resolve,reject)=>{
-        const callback='__carebridgeGoogleMapsReady';
-        const script=document.createElement('script');
-        const timeout=setTimeout(()=>{cleanup();reject(new Error('Google Maps took too long to load. Check your network and API settings.'))},20000);
-        const cleanup=()=>{clearTimeout(timeout);delete window[callback];};
-        window[callback]=()=>{cleanup();resolve();};
-        script.async=true;
-        script.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&loading=async&libraries=places&callback=${callback}`;
-        script.onerror=()=>{cleanup();script.remove();reject(new Error('Could not load Google Maps. Check your API key and allowed website addresses.'))};
-        document.head.appendChild(script);
-      });
-    }
-    const [mapsLibrary,placesLibrary,markerLibrary]=await Promise.all([
-      window.google.maps.importLibrary('maps'),
-      window.google.maps.importLibrary('places'),
-      window.google.maps.importLibrary('marker')
-    ]);
-    const PlacesService=placesLibrary.PlacesService||window.google.maps.places?.PlacesService;
-    const PlacesServiceStatus=placesLibrary.PlacesServiceStatus||window.google.maps.places?.PlacesServiceStatus;
-    if(!PlacesService||!PlacesServiceStatus)throw new Error('Google Places (Legacy) is unavailable in this project. Enable Places API (Legacy) in the existing Google Cloud project.');
-    return {Map:mapsLibrary.Map,InfoWindow:mapsLibrary.InfoWindow,PlacesService,PlacesServiceStatus,AdvancedMarkerElement:markerLibrary.AdvancedMarkerElement,mapId};
-  })();
-  try{return await mapsReadyPromise}catch(error){mapsReadyPromise=null;throw error}
-}
-
-/** Legacy Places JavaScript methods use callbacks, not promises. */
-function legacySearch(service,method,options,statuses){
-  return new Promise((resolve,reject)=>{
-    service[method](options,(places,status)=>{
-      if(status===statuses.OK){resolve(places||[]);return;}
-      if(status===statuses.ZERO_RESULTS){resolve([]);return;}
-      if(status===statuses.REQUEST_DENIED){
-        reject(new Error('Google Places (Legacy) denied this search. Check that Places API (Legacy) is enabled on your existing Google Cloud project, your browser key allows this API, and billing is active.'));return;
-      }
-      if(status===statuses.OVER_QUERY_LIMIT){
-        reject(new Error('Google Places search quota exceeded. Check your project quota and billing.'));return;
-      }
-      reject(new Error('Google Places (Legacy) search failed: '+String(status||'unknown error')));
-    });
-  });
-}
-
-export function createNearby({isActive,update}){
-  let category='pharmacy',city='',mode=null,origin=null,results=[],busy=false,message='',searched=false,mapShown=true;
-  let queryId=0,instance=null;
-  const refresh=()=>{if(isActive())update()};
-  const buttons=()=>Object.entries(PLACE_CATEGORIES).map(([key,item])=>`<button type="button" class="nearby-category" data-nearby-category="${key}" aria-pressed="${category===key}" ${busy?'disabled':''}><span aria-hidden="true">${item.icon}</span>${item.label}</button>`).join('');
-  const resultItem=(place,i)=>{
-    const distance=mode==='gps'&&origin?distanceMiles(origin,place):null;
-    return `<article class="nearby-place" aria-label="${escapeHTML(place.name)}">
-      <div class="nearby-number" aria-hidden="true">${i+1}</div>
-      <div class="nearby-place-main"><h3>${escapeHTML(place.name)}</h3><p>${escapeHTML(place.address)}</p><div class="nearby-place-details">${distance!==null?`<span>📍 About ${distance<0.1?'0.1':distance.toFixed(1)} miles away</span>`:''}${place.rating!==null?`<span>⭐ ${place.rating.toFixed(1)}${place.reviewCount!==null?` (${place.reviewCount})`:''}</span>`:''}</div>
-        <div class="nearby-place-actions"><a href="${escapeHTML(directionsUrl(place))}" rel="noopener noreferrer" target="_blank">↗ Directions</a><a class="nearby-secondary-link" href="${escapeHTML(placeMapUrl(place))}" rel="noopener noreferrer" target="_blank">Place details</a></div>
-      </div></article>`;
-  };
-  function viewNearby(){
-    const title=PLACE_CATEGORIES[category].label.toLowerCase();
-    return `${intro('Explore nearby places 📍','Find helpful places around you, from pharmacies and clinics to parks and community spaces.')}
-    <section class="panel nearby-start">
-      <div class="nearby-headline"><div><div class="eyebrow">Your neighborhood, made easier</div><h2>Where would you like to go?</h2><p>Choose a place type and find options close by. Your location is only used when you choose to share it.</p></div><div class="nearby-headline-icon" aria-hidden="true">🗺️</div></div>
-      <div class="nearby-categories" role="group" aria-label="Place categories">${buttons()}</div>
-      <div class="nearby-find-options"><button type="button" class="btn green nearby-locate" data-nearby-action="locate" ${busy?'disabled':''}>${busy?'Searching…':'◎ Use my location'}</button><span class="nearby-or">or search by city</span><form id="nearby-city-form" class="nearby-city-form"><label class="visually-hidden" for="nearby-city">City or ZIP code</label><input id="nearby-city" name="city" placeholder="City or ZIP code" maxlength="80" value="${escapeHTML(city)}" autocomplete="address-level2" required ${busy?'disabled':''}><button type="submit" class="btn outline" ${busy?'disabled':''}>Find places</button></form></div>
-      <div class="nearby-privacy-note">🔒 CareBridge does not save your GPS location or search history to Supabase. Google receives searches when you use the map.</div>
+export function createNearby({isActive,update,supabase,getUser}){
+ let category='pharmacy',city='',searchTarget='',selectedId=null,filteredText='',saved=[],loaded=false,loading=false,mapShown=true;
+ let busy=false,message='',savingError='',queryVersion=0;
+ const refresh=()=>{if(isActive())update()};
+ const selected=()=>saved.find(p=>p.id===selectedId)||null;
+ const shown=()=>saved.filter(p=>[p.name,p.category,p.address].join(' ').toLowerCase().includes(filteredText.toLowerCase().trim()));
+ const mapTarget=()=>selected()||searchTarget;
+ const safe=(v)=>escapeHTML(v);
+ const mapsLink=()=>buildMapsSearchUrl(mapTarget());
+ const mapLink=()=>buildMapEmbedUrl(mapTarget());
+ const categoryButtons=()=>Object.entries(PLACE_CATEGORIES).map(([key,opt])=>
+   `<button type="button" class="nearby-category" data-nearby-category="${key}" aria-pressed="${category===key}"><span aria-hidden="true">${opt.icon}</span>${safe(opt.label)}</button>`).join('');
+ const businessRow=p=>`<article class="nearby-saved-item ${selectedId===p.id?'is-selected':''}">
+  <button type="button" class="nearby-saved-select" data-nearby-select="${safe(p.id)}" aria-pressed="${selectedId===p.id}">
+   <strong>${safe(p.name)}</strong><span>${safe(PLACE_CATEGORIES[p.category]?.label||p.category||'Saved place')}</span><small>${safe(p.address||'Coordinates saved')}</small>
+  </button><div class="nearby-saved-actions"><a href="${safe(buildDirectionsUrl(p))}" target="_blank" rel="noopener noreferrer">Directions ↗</a><button type="button" data-nearby-delete="${safe(p.id)}" aria-label="Remove ${safe(p.name)}">Remove</button></div></article>`;
+ function viewNearby(){
+  const target=mapTarget(),embed=mapLink(),lookup=mapsLink();
+  const current=selected();
+  const shownPlaces=shown();
+  return `${intro('Explore nearby places 📍','Find pharmacies, parks, groceries, and other useful places with an easy-to-use Google Map.')}
+   <section class="panel nearby-start">
+    <div class="nearby-headline"><div><div class="eyebrow">Your neighborhood, made easier</div><h2>What would you like to find?</h2><p>Pick a category, then enter a city or use your location to search Google Maps.</p></div><div class="nearby-headline-icon" aria-hidden="true">🗺️</div></div>
+    <div class="nearby-categories" role="group" aria-label="Find a place">${categoryButtons()}</div>
+    <div class="nearby-find-options"><button class="btn green nearby-locate" type="button" data-nearby-action="locate" ${busy?'disabled':''}>${busy?'Finding location…':'◎ Use my location'}</button><span class="nearby-or">or search by city</span>
+     <form class="nearby-city-form" id="nearby-city-form"><label class="visually-hidden" for="nearby-city">City or ZIP code</label><input id="nearby-city" name="city" placeholder="City or ZIP code" maxlength="80" value="${safe(city)}" required><button class="btn outline" type="submit">Find on map</button></form></div>
+    <div class="nearby-privacy-note">🔒 Saved places are private to your signed-in account. CareBridge does not save your GPS location. Google receives search and map requests when you use this page.</div>
+   </section>
+   <div class="nearby-toolbar"><div><h2>${current?safe(current.name):target?'Explore your area':'Your nearby map'}</h2><p role="status">${safe(message|| (target?'Choose a saved place or open Google Maps to view search results.':'Choose a category, then search by city or location.'))}</p></div>
+    <button type="button" class="btn outline nearby-map-toggle" data-nearby-action="toggle-map" aria-expanded="${mapShown}" aria-controls="carebridge-embedded-map">${mapShown?'Hide map':'Show map'}</button></div>
+   <div class="nearby-grid ${mapShown?'':'nearby-no-map'}">
+    <section class="panel nearby-results" aria-label="Saved places"><div class="nearby-section-heading"><div><h2>My saved places</h2><p>Select one to display it on the map.</p></div><button class="small-btn" type="button" data-nearby-action="reload" ${loading?'disabled':''}>↻ Refresh</button></div>
+     <form id="nearby-filter-form" class="nearby-filter-form"><label class="visually-hidden" for="nearby-filter">Search saved places</label><input id="nearby-filter" name="filter" placeholder="Search saved places" maxlength="90" value="${safe(filteredText)}"><button class="btn outline" type="submit">Search</button></form>
+     ${loading?'<p class="nearby-status">Loading your saved places…</p>':''}${savingError?`<p class="nearby-error" role="alert">${safe(savingError)}</p>`:''}
+     ${shownPlaces.length?`<div class="nearby-saved-list">${shownPlaces.map(businessRow).join('')}</div>`:`<div class="nearby-saved-empty">${loaded?'No saved places match. Add one below or change your search.':'Your saved places will appear here.'}</div>`}
+     <div class="nearby-add-box"><h3>Save a place</h3><p>Found a place in Google Maps? Save its name and address for easy access later.</p>
+      <form id="nearby-save-form"><label for="nearby-place-name">Place name</label><input id="nearby-place-name" name="name" placeholder="Example: Local pharmacy" maxlength="120" required>
+       <label for="nearby-place-address">Address</label><input id="nearby-place-address" name="address" placeholder="Street address, city, state" maxlength="240" required>
+       <label for="nearby-place-category">Category</label><select id="nearby-place-category" name="category">${Object.entries(PLACE_CATEGORIES).map(([key,cat])=>`<option value="${key}" ${key===category?'selected':''}>${safe(cat.label)}</option>`).join('')}</select>
+       <button type="submit" class="btn green" ${busy?'disabled':''}>+ Save place</button></form></div>
     </section>
-    <div class="nearby-toolbar"><div><h2>${searched?`Nearby ${title}`:'Your nearby places'}</h2><p>${busy?'Finding places…':message||'Choose a category and search to see places.'}</p></div>${searched?`<button class="btn outline nearby-map-toggle" type="button" data-nearby-action="toggle-map" aria-pressed="${mapShown}">${mapShown?'Hide map':'Show map'}</button>`:''}</div>
-    <div class="nearby-grid ${mapShown?'':'nearby-no-map'}">
-      <section class="nearby-results panel" aria-label="Nearby place results" aria-live="polite">
-        ${busy?'<div class="nearby-empty"><span aria-hidden="true">🔎</span><strong>Looking for places…</strong><p>Results will appear here.</p></div>':results.length?`<div class="nearby-results-list">${results.map(resultItem).join('')}</div>`:`<div class="nearby-empty"><span aria-hidden="true">${searched?'🌱':'📍'}</span><strong>${searched?'No places found for this search':'Discover helpful places'}</strong><p>${escapeHTML(message||'Tap Use my location or search for a city to get started.')}</p></div>`}
-      </section>
-      ${mapShown?`<section class="nearby-map-panel panel" aria-label="Google Map"><div id="carebridge-google-map" class="nearby-map" role="application" aria-label="Interactive map showing search results">${results.length?'':'<div class="nearby-map-placeholder">🗺️<span>Map appears after you find places</span></div>'}</div><p class="nearby-map-caption">Select a map pin to see a place. Directions open in Google Maps.</p></section>`:''}
-    </div>
-    <p class="nearby-disclaimer">Please confirm opening hours, transportation options, and accessibility with a destination before traveling. CareBridge is not an emergency locator.</p>`;
+    ${mapShown?`<section class="panel nearby-map-panel" id="carebridge-embedded-map" aria-label="Google Maps viewer"><div class="nearby-map-header"><div><h2>${current?safe(current.name):'Google Maps'}</h2><p>${current?safe(current.address||'Saved coordinates'):target?safe(typeof target==='string'?target:'Select a location'):'Search for a place to view a map'}</p></div></div>
+     ${embed?`<iframe class="nearby-map" title="Google Maps for ${safe(current?.name||'nearby places')}" src="${safe(embed)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`:`<div class="nearby-map nearby-map-placeholder">🗺️<span>Choose a category and search to see Google Maps</span></div>`}
+     <div class="nearby-iframe-actions">${lookup?`<a class="btn green" href="${safe(lookup)}" target="_blank" rel="noopener noreferrer">Open in Google Maps ↗</a>`:''}${current?`<a class="btn outline" href="${safe(buildDirectionsUrl(current))}" target="_blank" rel="noopener noreferrer">Get directions ↗</a>`:''}</div>
+     <p class="nearby-map-caption">If the embedded map is unavailable, use “Open in Google Maps.” Google does not guarantee this no-key iframe format.</p></section>`:''}
+   </div>
+   <p class="nearby-disclaimer">Google Maps searches appear inside Google's own map. CareBridge cannot extract search results or ratings without a Places data service. Confirm hours and accessibility before visiting. This is not an emergency service.</p>`;
+ }
+ async function loadSaved(){
+  const user=getUser?.();if(!user?.id||loading)return;
+  const qid=++queryVersion;loading=true;savingError='';refresh();
+  try{
+   const {data,error}=await supabase.from('businesses').select('id,name,category,address,lat,long').eq('user_id',user.id).order('name',{ascending:true});
+   if(error)throw error;
+   if(qid!==queryVersion)return;
+   saved=(data||[]).map(normalizeBusiness).filter(Boolean);loaded=true;
+   if(selectedId&&!saved.some(p=>p.id===selectedId))selectedId=null;
+  }catch(err){if(qid!==queryVersion)return;savingError=`Could not load saved places: ${err.message||'Unknown error'}`;loaded=true;}
+  finally{if(qid===queryVersion){loading=false;refresh()}}
+ }
+ function afterRender(){if(!loaded&&!loading)void loadSaved()}
+ async function handleCitySubmit(form){
+  const data=new FormData(form);city=String(data.get('city')||'').trim().slice(0,80);
+  if(!city){message='Enter a city or ZIP code first.';refresh();return}
+  searchTarget=categoryQuery(category,city);selectedId=null;message=`Showing Google Maps for ${city}.`;refresh();
+ }
+ async function handleSaveSubmit(form){
+  if(busy)return;const values=new FormData(form);
+  const name=String(values.get('name')||'').trim().slice(0,120);
+  const address=String(values.get('address')||'').trim().slice(0,240);
+  const chosenCategory=String(values.get('category')||'pharmacy');
+  if(!name||!address){savingError='Enter a place name and address.';refresh();return}
+  if(!PLACE_CATEGORIES[chosenCategory]){savingError='Choose a valid place category.';refresh();return}
+  const user=getUser?.();if(!user?.id){savingError='Please sign in to save a place.';refresh();return}
+  busy=true;savingError='';
+  try{
+   const {data,error}=await supabase.from('businesses').insert({user_id:user.id,name,address,category:chosenCategory}).select('id,name,category,address,lat,long').single();
+   if(error)throw error;
+   selectedId=data.id;message='Your place was saved to CareBridge.';loaded=false;await loadSaved();
+  }catch(err){savingError=`Unable to save this place: ${err.message||'Unknown error'}`;}
+  finally{busy=false;refresh()}
+ }
+ async function handleFilterSubmit(form){filteredText=String(new FormData(form).get('filter')||'').trim().slice(0,90);refresh()}
+ async function locate(){
+  if(busy)return;if(!navigator.geolocation){message='This browser does not support location sharing. Search by city instead.';refresh();return}
+  busy=true;message='Requesting location permission…';refresh();
+  try{
+   const coords=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(
+    p=>resolve(p.coords),reject,{enableHighAccuracy:false,timeout:12000,maximumAge:120000}));
+   const position=`${coords.latitude.toFixed(5)},${coords.longitude.toFixed(5)}`;
+   searchTarget=categoryQuery(category,position);selectedId=null;message='Your approximate location is being used for this Google Maps search.';city='';
+  }catch(err){message=err.code===1?'Location permission was denied. You can search by city instead.':`Could not get your location: ${err.message||'Please try again.'}`}
+  finally{busy=false;refresh()}
+ }
+ async function handleClick(target){
+  const cat=target.closest('[data-nearby-category]');if(cat){category=PLACE_CATEGORIES[cat.dataset.nearbyCategory]?cat.dataset.nearbyCategory:category;selectedId=null;if(searchTarget){const loc=city||searchTarget.replace(/^.+? near /,'');searchTarget=categoryQuery(category,loc)}refresh();return;}
+  const select=target.closest('[data-nearby-select]');if(select){selectedId=select.dataset.nearbySelect;message='Showing your saved place.';refresh();return;}
+  const remove=target.closest('[data-nearby-delete]');if(remove){
+   const id=remove.dataset.nearbyDelete;const p=saved.find(s=>s.id===id);if(!p||!window.confirm(`Remove ${p.name} from your saved places?`))return;
+   const user=getUser?.();if(!user?.id)return;
+   const {error}=await supabase.from('businesses').delete().eq('id',id).eq('user_id',user.id);
+   if(error){savingError=`Could not remove the place: ${error.message}`;refresh();return}
+   if(selectedId===id)selectedId=null;loaded=false;await loadSaved();return;
   }
-  async function searchByLocation(){
-    if(busy)return;busy=true;message='Preparing Google Maps…';refresh();
-    try{
-      await loadGoogleMaps();
-      message='Waiting for location permission…';refresh();
-      if(!navigator.geolocation)throw new Error('This browser does not support location services. Try searching by city.');
-      const position=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:false,timeout:12000,maximumAge:120000}));
-      origin={lat:position.coords.latitude,lng:position.coords.longitude};mode='gps';city='';
-      await searchPlaces();
-    }catch(err){busy=false;message=err?.code===1?'Location permission was not granted. You can search by city instead.':showError(err);refresh()}
-  }
-  async function handleCitySubmit(form){
-    if(busy)return;
-    city=String(new FormData(form).get('city')||'').trim().slice(0,80);
-    if(!city){message='Enter a city or ZIP code.';refresh();return}
-    mode='city';origin=null;busy=true;await searchPlaces();
-  }
-  async function searchPlaces(){
-    busy=true;searched=false;results=[];message='Searching Google Maps…';refresh();
-    const id=++queryId;
-    try{
-      const {PlacesService,PlacesServiceStatus}=await loadGoogleMaps();
-      const item=PLACE_CATEGORIES[category];
-      // The Maps JavaScript PlacesService handles these requests in the browser.
-      // Do not fetch maps.googleapis.com/maps/api/place/nearbysearch/json from Chrome.
-      const service=new PlacesService(document.createElement('div'));
-      let found;
-      if(mode==='gps'&&origin){
-        const request={location:origin,radius:5000};
-        if(item.types.length)request.type=item.types[0];
-        else request.keyword=item.query;
-        found=await legacySearch(service,'nearbySearch',request,PlacesServiceStatus);
-      }else{
-        found=await legacySearch(service,'textSearch',{query:`${item.query} in ${city}`},PlacesServiceStatus);
-      }
-      if(id!==queryId)return;
-      const unique=new Map();
-      for(const raw of found){const place=normalizePlace(raw);if(place)unique.set(place.id||`${place.lat},${place.lng}`,place)}
-      results=[...unique.values()].slice(0,15);searched=true;
-      message=results.length?`${results.length} places found${mode==='city'?` around ${city}`:' near your location'}. Select Directions to open Google Maps.`:'Try another category or a nearby city.';
-    }catch(err){if(id!==queryId)return;message=showError(err);searched=true;results=[];}
-    finally{if(id===queryId){busy=false;refresh()}}
-  }
-  function afterRender(){
-    const node=document.getElementById('carebridge-google-map');
-    if(!node||!results.length||!mapShown||!window.google?.maps?.importLibrary)return;
-    const localNode=node,localResults=[...results];
-    void (async()=>{
-      try{
-        const {Map,InfoWindow,AdvancedMarkerElement,mapId}=await loadGoogleMaps();
-        if(!localNode.isConnected||!isActive())return;
-        const c=mode==='gps'?origin:{lat:localResults[0].lat,lng:localResults[0].lng};
-        instance=new Map(localNode,{center:c,zoom:13,mapId,mapTypeControl:false,streetViewControl:false,fullscreenControl:true});
-        const bounds=new google.maps.LatLngBounds();
-        const popup=new InfoWindow();
-        if(origin){bounds.extend(origin);new AdvancedMarkerElement({map:instance,position:origin,title:'Your approximate location'})}
-        localResults.forEach(place=>{
-          const point={lat:place.lat,lng:place.lng};bounds.extend(point);
-          const marker=new AdvancedMarkerElement({map:instance,position:point,title:place.name});
-          marker.addListener('click',()=>{
-            popup.setContent(`<div class="nearby-popup"><strong>${escapeHTML(place.name)}</strong><p>${escapeHTML(place.address)}</p><a target="_blank" rel="noopener noreferrer" href="${escapeHTML(directionsUrl(place))}">Get directions ↗</a></div>`);
-            popup.open({map:instance,anchor:marker});
-          });
-        });
-        if(localResults.length>1||origin)instance.fitBounds(bounds,45);
-      }catch(err){if(localNode.isConnected)localNode.textContent=`Map unavailable: ${showError(err)}`;}
-    })();
-  }
-  async function handleClick(target){
-    const categoryButton=target.closest('[data-nearby-category]');
-    if(categoryButton&&!busy){category=categoryButton.dataset.nearbyCategory;if(mode==='gps'&&origin||mode==='city'&&city){await searchPlaces()}else refresh();return;}
-    const button=target.closest('[data-nearby-action]');if(!button)return;
-    if(button.dataset.nearbyAction==='locate')await searchByLocation();
-    if(button.dataset.nearbyAction==='toggle-map'){mapShown=!mapShown;refresh()}
-  }
-  function reset(){queryId++;origin=null;mode=null;city='';category='pharmacy';results=[];busy=false;message='';searched=false;instance=null;}
-  return {viewNearby,afterRender,handleClick,handleCitySubmit,reset};
+  const action=target.closest('[data-nearby-action]');if(!action)return;
+  if(action.dataset.nearbyAction==='locate')await locate();
+  else if(action.dataset.nearbyAction==='reload'){loaded=false;await loadSaved()}
+  else if(action.dataset.nearbyAction==='toggle-map'){mapShown=!mapShown;refresh()}
+ }
+ function reset(){queryVersion++;city='';category='pharmacy';searchTarget='';selectedId=null;filteredText='';saved=[];loaded=false;loading=false;busy=false;message='';savingError='';mapShown=true}
+ return {viewNearby,afterRender,handleClick,handleCitySubmit,handleSaveSubmit,handleFilterSubmit,reset};
 }
