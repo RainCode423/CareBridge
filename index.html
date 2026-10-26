@@ -219,6 +219,7 @@
     .planner-tip .notice{font-size:.85rem}
     @media(max-width:1070px){.planner-layout{grid-template-columns:minmax(0,1fr)}.planner-calendar{max-width:680px}}
     @media(max-width:690px){.planner-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.planner-stat{padding:10px 9px}.planner-stat span{font-size:.73rem}.planner-stat strong{font-size:1.65rem}.planner-new{grid-column:1/-1;width:100%}.planner-layout{gap:16px}.care-task-row{padding:11px 9px;gap:8px;min-height:75px}.care-task-symbol{width:38px;height:42px;font-size:1.2rem}.care-complete{width:46px;height:46px}.care-status{font-size:.68rem;padding:5px 6px}.care-task-metadata{font-size:.71rem}.planner-pills button{min-width:65px;padding:8px}.task-form-row{grid-template-columns:1fr}.task-dialog{padding:20px}}
+    #language-select{border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);padding:10px 12px;font:inherit;font-size:.9rem;font-weight:700;min-height:44px;max-width:150px}#language-select:focus-visible{outline:3px solid var(--green);outline-offset:2px}
   </style>
   <link rel="stylesheet" href="./src/nearby.css">
   <link rel="stylesheet" href="./src/web-recipes.css">
@@ -231,7 +232,7 @@
   </aside>
   <div class="main-wrap">
     <header class="topbar"><div><div class="eyebrow" id="header-date"></div></div>
-      <div class="topbar-right"><span class="demo-pill" id="account-role">SUPABASE CONNECTED APP</span><button type="button" class="small-btn" data-action="refresh" id="refresh-btn" hidden>↻ Refresh</button><button type="button" class="small-btn" data-action="signout" id="signout-btn" hidden>Sign out</button></div>
+      <div class="topbar-right"><label class="visually-hidden" for="language-select">Language / 语言 / Idioma</label><select id="language-select" aria-label="Language / 语言 / Idioma"><option value="en">English</option><option value="zh">简体中文</option><option value="es">Español</option></select><span class="demo-pill" id="account-role">SUPABASE CONNECTED APP</span><button type="button" class="small-btn" data-action="refresh" id="refresh-btn" hidden>↻ Refresh</button><button type="button" class="small-btn" data-action="signout" id="signout-btn" hidden>Sign out</button></div>
     </header>
     <main id="app" class="content" tabindex="-1"></main>
   </div>
