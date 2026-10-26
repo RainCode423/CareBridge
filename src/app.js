@@ -7,11 +7,16 @@ import { createPlanner } from './planner.js';
 import { createScreens } from './screens.js';
 import { createNearby } from './nearby.js';
 import { createWebRecipes } from './web-recipes.js';
+import {getLanguage,setLanguage,initLanguageSelector,translateDOM} from './i18n.js';
 
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY || !SUPABASE_URL.startsWith('https://')) {
   document.getElementById('app').innerHTML = '<section class="panel auth-container"><h1>Complete Supabase setup</h1><p>Open <code>src/config.js</code> and enter your Supabase project URL and publishable key, then refresh.</p></section>';
 } else {
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+initLanguageSelector();
+let pendingTranslation=false;
+const scheduleTranslation=()=>{if(pendingTranslation)return;pendingTranslation=true;queueMicrotask(()=>{pendingTranslation=false;translateDOM();});};
+new MutationObserver(scheduleTranslation).observe(document.body,{subtree:true,childList:true,characterData:true});
 
 (function(){
 const STORE='carebridge-accessibility-v2';
@@ -120,6 +125,7 @@ function speak(){if(!('speechSynthesis' in window)){flash('Speech playback is un
 async function signOut(){nearby.reset();webRecipes.reset();await supabase.auth.signOut();user=null;role=null;elderId=null;links=[];invitationCode='';state.checkins={};state.notes={};state.reminders=[];state.tasks=[];state.completions=[];authMode='signin';view='home';infoText='';render()}
 async function initialize(){try{const {data:{user:current},error}=await supabase.auth.getUser();if(error)throw error;user=current;if(user)await loadAccount();else render()}catch(err){if(err.name==='AuthSessionMissingError'){user=null;render()}else{accountError=err.message;render()}}}
 async function recordHelp(){const previous=todays();if(previous?.followedUp){await request(supabase.from('followups').delete().eq('elder_id',elderId).eq('day',todayKey()))}await request(supabase.from('check_ins').upsert({elder_id:elderId,day:todayKey(),status:'help',checked_at:new Date().toISOString(),reason:needReason,mood:previous?.mood||null},{onConflict:'elder_id,day'}))}
+document.getElementById('language-select')?.addEventListener('change',e=>{setLanguage(e.target.value);translateDOM();});
 document.addEventListener('click',async e=>{
  const v=e.target.closest('[data-view]');if(v){const permitted=tabItems().some(item=>item[0]===v.dataset.view);if(permitted)setView(v.dataset.view);return}
  if(view==='recipes' && e.target.closest('[data-recipe-id], [data-recipe-back], [data-recipe-random]')){webRecipes.onClick(e.target,()=>{if(view==='recipes')render()});return}
