@@ -1,0 +1,11 @@
+CareBridge (senior check-ins + shared family planner)
+
+1. Open this folder in VS Code.
+2. Copy src/config.example.js to src/config.js and fill in your Supabase project URL and publishable API key.
+3. For a NEW Supabase project, run supabase/schema.sql and supabase/planner_migration.sql in SQL Editor. The existing connected CareBridge Supabase project already has both sets of tables.
+4. Run: python3 -m http.server 5500
+5. Visit http://localhost:5500
+6. Sign in as senior, create invitation code, and connect a caregiver with a separate account.
+7. Caregiver can create planner tasks; senior can mark them completed.
+
+Never publish a database password, service_role key, or other secret. CareBridge is not an emergency monitoring service.
