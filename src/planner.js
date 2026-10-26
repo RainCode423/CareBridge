@@ -3,7 +3,7 @@ import {todayKey,escapeHTML,intro} from './utils.js';
 export function createPlanner({state,getRole,getUser,getEditingTaskId,initialCalendarVisible=true}){
  let plannerMode='today',plannerCategory='all',plannerDate=todayKey();
  let plannerMonth=todayKey().slice(0,7),plannerCalendarVisible=initialCalendarVisible;
-const taskCategories={medication:['💊','Medication'],appointment:['🩺','Appointment'],event:['📅','Important event'],wellness:['🌿','Wellness'],other:['✅','Other']};
+const taskCategories={medication:['💊','Medication'],appointment:['🩺','Appointment'],event:['📅','Important event'],wellness:['🏃','Exercise'],other:['✅','Other']};
 const parseDay=iso=>{const [y,m,d]=iso.split('-').map(Number);return new Date(y,m-1,d)};
 const addDay=(iso,n)=>{const d=parseDay(iso);d.setDate(d.getDate()+n);return todayKey(d)};
 const deltaDay=(a,b)=>Math.round((Date.UTC(...a.split('-').map((v,i)=>i===1?Number(v)-1:Number(v)))-Date.UTC(...b.split('-').map((v,i)=>i===1?Number(v)-1:Number(v))))/86400000);
