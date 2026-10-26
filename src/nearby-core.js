@@ -9,14 +9,22 @@ export const PLACE_CATEGORIES = Object.freeze({
   cafe: {label:'Cafés',icon:'☕',types:['cafe'],query:'cafes'}
 });
 
+/** Accept both Google PlacesService (Legacy) results and newer Place objects. */
 export function normalizePlace(place) {
-  const loc=place?.location;
+  const loc=place?.geometry?.location||place?.location;
   const lat=typeof loc?.lat==='function'?loc.lat():Number(loc?.lat);
   const lng=typeof loc?.lng==='function'?loc.lng():Number(loc?.lng);
-  if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180) return null;
-  return {id:String(place.id||''),name:String(place.displayName||'Unnamed place'),address:String(place.formattedAddress||'Address not available'),lat,lng,
-    rating:Number.isFinite(place.rating)?Number(place.rating):null,
-    reviewCount:Number.isFinite(place.userRatingCount)?Number(place.userRatingCount):null};
+  if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)return null;
+  const rating=Number(place?.rating);
+  const count=Number(place?.user_ratings_total??place?.userRatingCount);
+  return {
+    id:String(place.place_id||place.id||''),
+    name:String(place.name||place.displayName||'Unnamed place'),
+    address:String(place.vicinity||place.formatted_address||place.formattedAddress||'Address not available'),
+    lat,lng,
+    rating:Number.isFinite(rating)&&place.rating!=null?rating:null,
+    reviewCount:Number.isFinite(count)&&(place.user_ratings_total!=null||place.userRatingCount!=null)?count:null
+  };
 }
 
 export function distanceMiles(origin, destination){
