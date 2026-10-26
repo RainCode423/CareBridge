@@ -180,3 +180,16 @@ Features:
 Database setup: The connected CareBridge Supabase project already has the `businesses` table after this update. For a different project, apply `supabase/businesses_migration.sql` once. Each user's saved places are isolated by row-level security policies. The page does not store GPS coordinates obtained from the browser.
 
 Run with `python3 -m http.server 5501` and visit `http://localhost:5501` with your older-adult account. Google Maps URLs search/directions are supported without API keys; Google's official Maps Embed API requires an API key, so this lightweight iframe format might vary by browser.
+
+## Website-based recipes (feature branch)
+
+The older-adult **Recipes** tab fetches published recipes from TheMealDB (https://www.themealdb.com/api.php) rather than asking an AI to write recipes. No recipe-generation model or private API key is used.
+
+- Enter pantry ingredients separated by commas. The app searches real recipes and ranks those returned by the proportion of listed ingredients already on hand.
+- Search by dish name, optionally filter by a cuisine, or discover a random recipe.
+- Read full recipe ingredients and published cooking instructions, see recipe photos, and open the original source website where one is supplied.
+- An optional vegetarian-category switch and an ingredient-exclusion filter provide *convenience filtering only*. These are not medically safe allergy filters: ingredient labels, sauces, cross-contact, and incomplete source metadata can invalidate them. Always check recipe details and packaging.
+- Search currently covers only a subset of the remote catalog, not every possible dish or every possible pantry-ingredient combination. Some records may not include a separate original-source URL, in which case the meal page on TheMealDB is linked.
+- Preferences are saved to this browser's localStorage, not the Supabase account. The site needs internet access and is subject to the recipe provider's uptime and usage policies.
+
+Implementation: \`src/web-recipes.js\` (accessible user interface), \`src/web-recipes-core.js\` (live API, filtering, match ranking), and \`src/web-recipes.css\`. Run automated checks with \`node --test tests/web-recipes.test.mjs\` after installing Node; normal app runtime still requires no npm installation.
