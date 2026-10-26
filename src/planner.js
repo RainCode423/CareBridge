@@ -48,7 +48,7 @@ function viewPlanner(){
  let rows=[],head='Today’s tasks',desc=longDay(today);
  if(plannerMode==='today'){rows=allToday}
  if(plannerMode==='calendar'){rows=dayTasks(plannerDate);head=`Tasks for ${shortDay(plannerDate)}`;desc='Appointments, medicines and events for this day.'}
- if(plannerMode==='upcoming'){head='Coming up';desc='The next 21 days, all in one place.';for(let i=0;i<21;i++)rows.push(...dayTasks(addDay(today,i)));rows=rows.sort((a,b)=>a.day.localeCompare(b.day)||(a.task.due_time||'99').localeCompare(b.task.due_time||'99'))}
+ if(plannerMode==='upcoming'){head='Coming up';desc='The next 21 days.';for(let i=0;i<21;i++)rows.push(...dayTasks(addDay(today,i)));rows=rows.sort((a,b)=>a.day.localeCompare(b.day)||(a.task.due_time||'99').localeCompare(b.task.due_time||'99'))}
  if(plannerCategory!=='all')rows=rows.filter(i=>i.task.category===plannerCategory);
  return `${intro(role==='senior'?'Daily Planner':`${escapeHTML(state.prefs.elderName)}’s care planner 📅`,role==='senior'?'You can put your daily task below and your family can also add tasks to stay organized.':'Schedule medications, appointments and important events for your loved one. They can mark tasks done when ready.')}
  <div class="planner-summary"><div class="planner-stat"><span>Tasks today</span><strong>${allToday.length}</strong></div><div class="planner-stat"><span>Completed</span><strong>${doneToday}</strong></div><div class="planner-stat"><span>Still to do</span><strong>${allToday.length-doneToday}</strong></div><button type="button" class="btn green planner-new" data-action="new-care-task">＋ Add a task</button></div>
