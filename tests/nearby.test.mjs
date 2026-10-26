@@ -29,3 +29,18 @@ test('an unconfigured Google Maps key is rejected',()=>{
   assert.equal(isMapsKeyConfigured('abc'),false);
   assert.equal(isMapsKeyConfigured('AIzaSyExampleExampleExampleExample'),true);
 });
+test('legacy PlacesService results normalize place_id, geometry, vicinity, and reviews',()=>{
+  const legacy={
+    place_id:'ChIJTEST',
+    name:'Neighborhood Pharmacy',
+    vicinity:'123 Main Street',
+    geometry:{location:{lat:()=>34.02,lng:()=>-117.82}},
+    rating:4.6,
+    user_ratings_total:128
+  };
+  const result=normalizePlace(legacy);
+  assert.deepEqual({id:result.id,name:result.name,address:result.address,lat:result.lat,lng:result.lng,rating:result.rating,reviewCount:result.reviewCount},{
+    id:'ChIJTEST',name:'Neighborhood Pharmacy',address:'123 Main Street',lat:34.02,lng:-117.82,rating:4.6,reviewCount:128
+  });
+  assert.equal(normalizePlace({geometry:{location:{lat:()=>999,lng:()=>0}}}),null);
+});
