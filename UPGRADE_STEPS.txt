@@ -1,0 +1,7 @@
+CareBridge planner upgrade
+
+The updated web application includes Today/Upcoming/calendar planner views, one-time/daily/weekly tasks, categories, and caregiver assignment.
+
+On existing installs keep your local src/config.js (not included in Git). Pull the new files, run python3 -m http.server 5500, and refresh your browser.
+
+The Supabase project connected in this conversation already has care_tasks and care_task_completions and their RLS policies. For other projects, run the planner_migration.sql file after schema.sql.
